@@ -32,12 +32,23 @@ export type CustomerStackParamList = {
 };
 
 // ----------------------------------------------------------------
+// Admin stack
+// ----------------------------------------------------------------
+export type AdminStackParamList = {
+  AdminDashboard: undefined;
+  AdminUsers: undefined;
+  AdminTransactions: undefined;
+  AdminSettlements: undefined;
+};
+
+// ----------------------------------------------------------------
 // Root stack (wraps auth + role stacks)
 // ----------------------------------------------------------------
 export type RootStackParamList = {
   Auth: undefined;
   Store: undefined;
   Customer: undefined;
+  Admin: undefined;
 };
 
 // ----------------------------------------------------------------

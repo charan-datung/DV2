@@ -17,8 +17,10 @@ export default {
     },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.datung.app',
     },
     android: {
+      package: 'com.datung.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
