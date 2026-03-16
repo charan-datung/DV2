@@ -88,7 +88,24 @@ export default function StoreSettingsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>Mga Setting</Text>
+
+        {/* Store QR Code */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>QR Code ng Tindahan</Text>
+          <Text style={[styles.label, { marginTop: 0 }]}>
+            Ipakita ito sa mga customer para i-scan:
+          </Text>
+          <View style={styles.qrContainer}>
+            <View style={styles.qrBox}>
+              <Text style={styles.qrEmoji}>QR</Text>
+              <Text style={styles.qrStoreId}>{store?.id ?? '-'}</Text>
+            </View>
+            <Text style={styles.qrHint}>
+              Store ID: {store?.id ?? '-'}
+            </Text>
+          </View>
+        </View>
 
         {/* Store info card */}
         <View style={styles.card}>
@@ -254,4 +271,20 @@ const styles = StyleSheet.create({
   },
   logoutBtnPressed: { backgroundColor: '#FFCDD2' },
   logoutText: { fontSize: 15, fontWeight: '700', color: C.error },
+
+  qrContainer: { alignItems: 'center', paddingVertical: 16 },
+  qrBox: {
+    width: 160,
+    height: 160,
+    borderWidth: 3,
+    borderColor: C.primary,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.white,
+    marginBottom: 12,
+  },
+  qrEmoji: { fontSize: 48, color: C.primary, fontWeight: '800', marginBottom: 4 },
+  qrStoreId: { fontSize: 9, color: C.textSub, textAlign: 'center', paddingHorizontal: 8 },
+  qrHint: { fontSize: 12, color: C.textSub, textAlign: 'center' },
 });

@@ -15,6 +15,7 @@ import type { StoreStackParamList } from '../../types/navigation';
 import { useTransactionDetail } from '../../hooks/use-transactions';
 import { storeService } from '../../services/store-service';
 import { formatCentavos } from '../../utils/currency';
+import { calculateCommission } from '../../utils/currency';
 import { formatDate, formatDateTime, daysUntil } from '../../utils/date';
 import { userFriendlyError } from '../../utils/errors';
 import LoadingSpinner from '../../components/loading-spinner';
@@ -29,7 +30,17 @@ const C = {
   text: '#1A1A2E',
   textSub: '#5E6A7A',
   error: '#C62828',
+  errorLight: '#FFEBEE',
   disabled: '#A8B4C0',
+  warning: '#E65100',
+  warningLight: '#FFF3E0',
+};
+
+const ESCALATION_LABELS: Record<string, string> = {
+  day3_notify: 'Araw 3 — Abiso sa customer',
+  day5_freeze: 'Araw 5 — Account ni-freeze',
+  day10_reduce: 'Araw 10 — Binawasan ng 50%',
+  day30_permanent: 'Araw 30 — Permanent na block',
 };
 
 const TRUST_REASONS: Record<string, string> = {
@@ -48,7 +59,7 @@ export default function StoreTransactionDetailScreen() {
   const route = useRoute<RouteType>();
   const { transactionId } = route.params;
 
-  const { transaction, repayments, isLoading, error, refetch } =
+  const { transaction, repayments, guaranteeEvents, isLoading, error, refetch } =
     useTransactionDetail(transactionId);
 
   const [approving, setApproving] = useState(false);
@@ -149,6 +160,60 @@ export default function StoreTransactionDetailScreen() {
                 <Text style={styles.repaymentDate}>{formatDateTime(r.created_at)}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Commission info (for approved/settled/repaid) */}
+        {['approved', 'settled', 'repaid'].includes(transaction.status) && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Komisyon</Text>
+            <InfoRow
+              label="Komisyon ng tindahan (1%)"
+              value={formatCentavos(calculateCommission(transaction.amount_centavos))}
+            />
+          </View>
+        )}
+
+        {/* Escalation timeline */}
+        {guaranteeEvents.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Escalation Timeline</Text>
+            {guaranteeEvents.map((evt, idx) => (
+              <View key={evt.id} style={styles.timelineRow}>
+                <View style={[
+                  styles.timelineDot,
+                  evt.event_type === 'day30_permanent' ? { backgroundColor: C.error } :
+                  evt.event_type === 'day10_reduce' ? { backgroundColor: C.warning } :
+                  { backgroundColor: '#F4A200' },
+                ]} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineLabel}>
+                    {ESCALATION_LABELS[evt.event_type] ?? evt.event_type}
+                  </Text>
+                  <Text style={styles.timelineMeta}>
+                    {formatDateTime(evt.created_at)}
+                  </Text>
+                  {(evt.store_share_centavos > 0 || evt.datung_share_centavos > 0) && (
+                    <Text style={styles.timelineShare}>
+                      Tindahan: {formatCentavos(evt.store_share_centavos)} · Datung: {formatCentavos(evt.datung_share_centavos)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Overdue warning with escalation schedule */}
+        {isOverdue && !['repaid', 'defaulted'].includes(transaction.status) && (
+          <View style={[styles.card, { backgroundColor: C.warningLight }]}>
+            <Text style={[styles.sectionTitle, { color: C.warning }]}>Escalation Schedule</Text>
+            <Text style={{ fontSize: 12, color: C.warning, lineHeight: 18 }}>
+              Araw 3: Notify customer{'\n'}
+              Araw 5: I-freeze ang account{'\n'}
+              Araw 10: Bawasan ng 50% (tindahan 50%, Datung 50%){'\n'}
+              Araw 30: Permanent block
+            </Text>
           </View>
         )}
 
@@ -326,4 +391,21 @@ const styles = StyleSheet.create({
   approveBtnPressed: { backgroundColor: C.primaryDark },
   btnDisabled: { backgroundColor: C.disabled },
   approveBtnText: { fontSize: 16, fontWeight: '700', color: C.white },
+
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 4,
+    marginRight: 12,
+  },
+  timelineContent: { flex: 1 },
+  timelineLabel: { fontSize: 13, fontWeight: '600', color: C.text },
+  timelineMeta: { fontSize: 11, color: C.textSub, marginTop: 2 },
+  timelineShare: { fontSize: 11, color: C.error, marginTop: 2 },
 });

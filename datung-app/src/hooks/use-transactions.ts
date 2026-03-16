@@ -10,6 +10,7 @@ import { useRealtime } from './use-realtime';
 export function useTransactionDetail(transactionId: string | undefined) {
   const [transaction, setTransaction] = useState<TransactionDetail | null>(null);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
+  const [guaranteeEvents, setGuaranteeEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,12 +19,14 @@ export function useTransactionDetail(transactionId: string | undefined) {
     try {
       setIsLoading(true);
       setError(null);
-      const [txn, reps] = await Promise.all([
+      const [txn, reps, events] = await Promise.all([
         transactionService.getById(transactionId),
         transactionService.getRepayments(transactionId),
+        transactionService.getGuaranteeEvents(transactionId),
       ]);
       setTransaction(txn);
       setRepayments(reps);
+      setGuaranteeEvents(events);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transaction');
     } finally {
@@ -50,5 +53,5 @@ export function useTransactionDetail(transactionId: string | undefined) {
     transactionId ? `transaction_id=eq.${transactionId}` : undefined,
   );
 
-  return { transaction, repayments, isLoading, error, refetch: fetch };
+  return { transaction, repayments, guaranteeEvents, isLoading, error, refetch: fetch };
 }

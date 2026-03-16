@@ -66,7 +66,7 @@ export default function CustomerTransactionDetailScreen() {
           <Text style={styles.amount}>{formatCentavos(transaction.amount_centavos)}</Text>
           {transaction.interest_centavos > 0 && (
             <Text style={styles.interest}>
-              + {formatCentavos(transaction.interest_centavos)} interest
+              + {formatCentavos(transaction.interest_centavos)} bayad-dagdag
             </Text>
           )}
           <Text style={styles.total}>
@@ -78,18 +78,22 @@ export default function CustomerTransactionDetailScreen() {
         <View style={styles.card}>
           <InfoRow label="Tindahan" value={transaction.stores?.name ?? '-'} />
           <InfoRow label="Status" value={transaction.status} />
-          <InfoRow label="Due Date" value={formatDate(transaction.due_date)} />
+          <InfoRow label="Takdang Araw" value={formatDate(transaction.due_date)} />
           {isOverdue && (
             <InfoRow
               label="Overdue"
-              value={`${Math.abs(days)} araw`}
+              value={`${Math.abs(days)} araw nang late`}
               valueColor={C.error}
             />
           )}
           {!isOverdue && days >= 0 && !['repaid', 'defaulted'].includes(transaction.status) && (
-            <InfoRow label="Natitira" value={`${days} araw`} />
+            <InfoRow
+              label="Natitira"
+              value={days === 0 ? 'Ngayong araw!' : `${days} araw`}
+              valueColor={days <= 1 ? C.error : days <= 3 ? '#E65100' : undefined}
+            />
           )}
-          <InfoRow label="Created" value={formatDateTime(transaction.created_at)} />
+          <InfoRow label="Petsa" value={formatDateTime(transaction.created_at)} />
           {transaction.repaid_at && (
             <InfoRow label="Nabayaran" value={formatDateTime(transaction.repaid_at)} />
           )}

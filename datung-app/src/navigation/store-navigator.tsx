@@ -87,7 +87,7 @@ export default function StoreNavigator() {
         name="SettingsTab"
         component={StoreSettingsStack}
         options={{
-          tabBarLabel: 'Settings',
+          tabBarLabel: 'Mga Setting',
           tabBarIcon: ({ color }) => (
             <TabIcon label="⚙" color={color} />
           ),

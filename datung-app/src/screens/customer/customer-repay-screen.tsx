@@ -96,7 +96,7 @@ export default function CustomerRepayScreen() {
             <Text style={styles.summaryAmount}>{formatCentavos(totalDue)}</Text>
             <Text style={styles.summaryBreakdown}>
               {formatCentavos(transaction.amount_centavos)} halaga +{' '}
-              {formatCentavos(transaction.interest_centavos)} interest
+              {formatCentavos(transaction.interest_centavos)} bayad-dagdag
             </Text>
           </View>
 

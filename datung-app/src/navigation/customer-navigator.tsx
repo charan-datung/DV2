@@ -59,7 +59,7 @@ export default function CustomerNavigator() {
         name="HomeTab"
         component={CustomerHomeStack}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: 'Tahanan',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>H</Text>,
         }}
       />
@@ -67,7 +67,7 @@ export default function CustomerNavigator() {
         name="ScanTab"
         component={CustomerScanStack}
         options={{
-          tabBarLabel: 'Scan QR',
+          tabBarLabel: 'I-scan',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>⎕</Text>,
         }}
       />

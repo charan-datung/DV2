@@ -32,6 +32,10 @@ export default function TransactionCard({ transaction, subtitle, onPress }: Prop
   const days = daysUntil(transaction.due_date);
   const isOverdue = days < 0 && !['repaid', 'defaulted'].includes(transaction.status);
 
+  // Urgency color for countdown
+  const isActive = ['approved', 'settled', 'pending'].includes(transaction.status);
+  const countdownColor = isOverdue ? '#C62828' : days <= 1 ? '#C62828' : days <= 3 ? '#E65100' : days <= 7 ? '#F4A200' : '#5E6A7A';
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
@@ -43,8 +47,15 @@ export default function TransactionCard({ transaction, subtitle, onPress }: Prop
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
           <Text style={styles.date}>
             Due: {formatDate(transaction.due_date)}
-            {isOverdue && <Text style={styles.overdue}> ({Math.abs(days)}d overdue)</Text>}
           </Text>
+          {isActive && !isOverdue && days >= 0 && (
+            <Text style={[styles.countdown, { color: countdownColor }]}>
+              {days === 0 ? 'Ngayong araw ang due!' : `${days} araw na lang`}
+            </Text>
+          )}
+          {isOverdue && (
+            <Text style={styles.overdue}>{Math.abs(days)} araw nang overdue</Text>
+          )}
         </View>
         <View style={styles.right}>
           <View style={[styles.badge, { backgroundColor: status.bg }]}>
@@ -92,9 +103,16 @@ const styles = StyleSheet.create({
     color: '#5E6A7A',
     marginTop: 4,
   },
+  countdown: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   overdue: {
+    fontSize: 12,
     color: '#C62828',
     fontWeight: '600',
+    marginTop: 2,
   },
   badge: {
     paddingHorizontal: 10,

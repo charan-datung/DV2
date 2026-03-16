@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { StoreStackParamList } from '../../types/navigation';
 import { useMyStore, useStoreTransactions } from '../../hooks/use-store';
-import { formatCentavos } from '../../utils/currency';
+import { formatCentavos, calculateCommission } from '../../utils/currency';
 import TransactionCard from '../../components/transaction-card';
 import LoadingSpinner from '../../components/loading-spinner';
 import ErrorBanner from '../../components/error-banner';
@@ -60,6 +60,17 @@ export default function StoreHomeScreen() {
     (t) => t.status === 'approved' || t.status === 'settled',
   ).length;
 
+  // Commission: 1% of all repaid transaction amounts
+  const repaidTxns = transactions.filter((t) => t.status === 'repaid');
+  const totalCommission = repaidTxns.reduce(
+    (sum, t) => sum + calculateCommission(t.amount_centavos), 0,
+  );
+
+  // Pending settlement: approved but not yet settled
+  const pendingSettlement = transactions
+    .filter((t) => t.status === 'approved')
+    .reduce((sum, t) => sum + t.amount_centavos, 0);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FlatList
@@ -83,7 +94,7 @@ export default function StoreHomeScreen() {
             {/* Balance cards */}
             <View style={styles.balanceRow}>
               <View style={[styles.balanceCard, { backgroundColor: C.primaryLight }]}>
-                <Text style={styles.balanceLabel}>Available Balance</Text>
+                <Text style={styles.balanceLabel}>Available na Balanse</Text>
                 <Text style={[styles.balanceValue, { color: C.primary }]}>
                   {formatCentavos(store?.available_balance ?? 0)}
                 </Text>
@@ -95,6 +106,31 @@ export default function StoreHomeScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Commission & Settlement */}
+            <View style={styles.balanceRow}>
+              <View style={[styles.balanceCard, { backgroundColor: '#F3E8FF' }]}>
+                <Text style={styles.balanceLabel}>Total na Komisyon</Text>
+                <Text style={[styles.balanceValue, { color: '#7C3AED' }]}>
+                  {formatCentavos(totalCommission)}
+                </Text>
+              </View>
+              <View style={[styles.balanceCard, { backgroundColor: '#FFF8E1' }]}>
+                <Text style={styles.balanceLabel}>Pending Settlement</Text>
+                <Text style={[styles.balanceValue, { color: C.accent }]}>
+                  {formatCentavos(pendingSettlement)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Store status warning */}
+            {store?.status === 'frozen' && (
+              <View style={[styles.warningBanner]}>
+                <Text style={styles.warningText}>
+                  Naka-freeze ang tindahan — may overdue na customer. Hindi maaaring mag-approve ng bagong transaksyon.
+                </Text>
+              </View>
+            )}
 
             {/* Quick stats */}
             <View style={styles.statsRow}>
@@ -219,4 +255,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+
+  warningBanner: {
+    backgroundColor: C.errorLight,
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  warningText: { fontSize: 13, color: C.error, lineHeight: 18 },
 });

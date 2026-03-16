@@ -50,7 +50,7 @@ export const transactionService = {
     return (data ?? []) as Repayment[];
   },
 
-  /** Submit a repayment for a transaction */
+  /** Submit a repayment for a transaction — also handles level progression */
   async submitRepayment(data: {
     transaction_id: string;
     amount_centavos: number;
@@ -70,6 +70,13 @@ export const transactionService = {
 
     if (error) throw error;
 
+    // Get the transaction to check due date and customer
+    const { data: txn } = await supabase
+      .from('transactions')
+      .select('customer_id, due_date, store_id, amount_centavos')
+      .eq('id', data.transaction_id)
+      .single();
+
     // Update transaction status to repaid
     const { error: updateErr } = await supabase
       .from('transactions')
@@ -80,6 +87,65 @@ export const transactionService = {
       .eq('id', data.transaction_id);
 
     if (updateErr) throw updateErr;
+
+    // Level progression: increment on_time_repayment_count if paid on time
+    if (txn) {
+      const dueDate = new Date(txn.due_date);
+      const now = new Date();
+      const isOnTime = now <= new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // grace: end of due day
+
+      if (isOnTime) {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('on_time_repayment_count, level')
+          .eq('id', txn.customer_id)
+          .single();
+
+        if (customer) {
+          const newCount = customer.on_time_repayment_count + 1;
+          // Level upgrade thresholds: 2 → L1, 5 → L2, 10 → L3, 20 → L4
+          const UPGRADE_THRESHOLDS: Record<number, number> = { 0: 2, 1: 5, 2: 10, 3: 20 };
+          const threshold = UPGRADE_THRESHOLDS[customer.level];
+          const shouldUpgrade = threshold !== undefined && newCount >= threshold && customer.level < 4;
+
+          await supabase
+            .from('customers')
+            .update({
+              on_time_repayment_count: newCount,
+              ...(shouldUpgrade ? { level: customer.level + 1 } : {}),
+            })
+            .eq('id', txn.customer_id);
+        }
+      } else {
+        // Late payment: reset customer back one level
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('level')
+          .eq('id', txn.customer_id)
+          .single();
+
+        if (customer && customer.level > 0) {
+          await supabase
+            .from('customers')
+            .update({ level: customer.level - 1 })
+            .eq('id', txn.customer_id);
+        }
+      }
+
+      // Restore store available balance on repayment
+      const { data: store } = await supabase
+        .from('stores')
+        .select('available_balance')
+        .eq('id', txn.store_id)
+        .single();
+
+      if (store) {
+        await supabase
+          .from('stores')
+          .update({ available_balance: store.available_balance + txn.amount_centavos })
+          .eq('id', txn.store_id);
+      }
+    }
 
     return repayment as Repayment;
   },

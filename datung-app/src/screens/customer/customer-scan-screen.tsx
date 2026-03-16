@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMyCustomer } from '../../hooks/use-customer';
+import { useMyCustomer, useActiveTransactions } from '../../hooks/use-customer';
 import {
   customerService,
   getMaxTransaction,
@@ -34,10 +33,21 @@ const C = {
   error: '#C62828',
   errorBg: '#FFEBEE',
   disabled: '#A8B4C0',
+  warning: '#E65100',
+  warningBg: '#FFF3E0',
 };
+
+/** Sanitize decimal input — only allow one decimal point */
+function sanitizeDecimal(text: string): string {
+  const cleaned = text.replace(/[^0-9.]/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length <= 2) return cleaned;
+  return parts[0] + '.' + parts.slice(1).join('');
+}
 
 export default function CustomerScanScreen() {
   const { customer } = useMyCustomer();
+  const { transactions: activeTxns } = useActiveTransactions();
   const [storeId, setStoreId] = useState('');
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -48,11 +58,22 @@ export default function CustomerScanScreen() {
   const maxCentavos = getMaxTransaction(level);
   const termDays = getTermDays(level);
 
+  // Global outstanding balance (approved + settled transactions)
+  const totalOutstanding = (activeTxns ?? [])
+    .filter((t) => t.status === 'approved' || t.status === 'settled')
+    .reduce((sum: number, t: any) => sum + t.amount_centavos, 0);
+  const availableCentavos = Math.max(0, maxCentavos - totalOutstanding);
+
   const amountCentavos = pesosToCentavos(parseFloat(amount) || 0);
-  const isValidAmount = amountCentavos > 0 && amountCentavos <= maxCentavos;
+  const isValidAmount = amountCentavos > 0 && amountCentavos <= availableCentavos;
   const interestCentavos = isValidAmount ? calculateInterest(amountCentavos, termDays) : 0;
 
-  const canSubmit = storeId.trim().length > 0 && isValidAmount && !isLoading;
+  // Status guards
+  const isBlocked = customer?.status === 'blocked' || customer?.status === 'suspended';
+  const isFrozen = customer?.status === 'frozen';
+  const canTransact = !isBlocked && !isFrozen;
+
+  const canSubmit = storeId.trim().length > 0 && isValidAmount && !isLoading && canTransact;
 
   const handleSubmit = async () => {
     if (!canSubmit || !customer) return;
@@ -97,6 +118,30 @@ export default function CustomerScanScreen() {
             I-enter ang Store ID at ang halaga na gusto mong gamitin.
           </Text>
 
+          {/* Status guard banners */}
+          {isBlocked && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>
+                Hindi ka maaaring mag-transact. Naka-block o naka-suspend ang iyong account.
+              </Text>
+            </View>
+          )}
+          {isFrozen && !isBlocked && (
+            <View style={[styles.errorBox, { backgroundColor: C.warningBg }]}>
+              <Text style={[styles.errorText, { color: C.warning }]}>
+                Naka-freeze ang iyong account. Bayaran muna ang overdue na balanse.
+              </Text>
+            </View>
+          )}
+
+          {/* Available balance info */}
+          {canTransact && totalOutstanding > 0 && (
+            <View style={[styles.summary, { marginBottom: 16, marginTop: 0 }]}>
+              <SummaryRow label="Outstanding" value={formatCentavos(totalOutstanding)} />
+              <SummaryRow label="Available pa" value={formatCentavos(availableCentavos)} />
+            </View>
+          )}
+
           {/* QR placeholder / manual entry */}
           <View style={styles.card}>
             <View style={styles.qrPlaceholder}>
@@ -123,8 +168,8 @@ export default function CustomerScanScreen() {
             <TextInput
               style={styles.input}
               value={amount}
-              onChangeText={(t) => setAmount(t.replace(/[^0-9.]/g, ''))}
-              placeholder={`Max: ${formatCentavos(maxCentavos)}`}
+              onChangeText={(t) => setAmount(sanitizeDecimal(t))}
+              placeholder={`Max: ${formatCentavos(availableCentavos)}`}
               placeholderTextColor={C.disabled}
               keyboardType="decimal-pad"
               editable={!isLoading}
@@ -135,7 +180,7 @@ export default function CustomerScanScreen() {
               <View style={styles.summary}>
                 <SummaryRow label="Halaga" value={formatCentavos(amountCentavos)} />
                 <SummaryRow
-                  label={`Interest (${termDays} araw)`}
+                  label={`Bayad-dagdag (${termDays} araw)`}
                   value={formatCentavos(interestCentavos)}
                 />
                 <View style={styles.totalRow}>
@@ -150,10 +195,11 @@ export default function CustomerScanScreen() {
               </View>
             )}
 
-            {amountCentavos > maxCentavos && (
+            {amountCentavos > availableCentavos && amountCentavos > 0 && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>
-                  Lumagpas sa maximum na {formatCentavos(maxCentavos)} para sa Level {level}.
+                  Lumagpas sa available na {formatCentavos(availableCentavos)} para sa Level {level}.
+                  {totalOutstanding > 0 ? ` May outstanding ka pang ${formatCentavos(totalOutstanding)}.` : ''}
                 </Text>
               </View>
             )}

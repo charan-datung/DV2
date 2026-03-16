@@ -12,6 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CustomerStackParamList } from '../../types/navigation';
 import { useMyCustomer, useCustomerTransactions } from '../../hooks/use-customer';
 import { formatCentavos } from '../../utils/currency';
+import { daysUntil } from '../../utils/date';
 import { getMaxTransaction } from '../../services/customer-service';
 import TransactionCard from '../../components/transaction-card';
 import LoadingSpinner from '../../components/loading-spinner';
@@ -27,6 +28,10 @@ const C = {
   textSub: '#5E6A7A',
   accent: '#F4A200',
   accentLight: '#FFF8E1',
+  error: '#C62828',
+  errorLight: '#FFEBEE',
+  warning: '#E65100',
+  warningLight: '#FFF3E0',
 };
 
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
@@ -105,9 +110,65 @@ export default function CustomerHomeScreen() {
             {/* Max amount info */}
             <View style={styles.maxRow}>
               <Text style={styles.maxText}>
-                Maximum per transaction: {formatCentavos(maxAmount)}
+                Pinakamataas na halaga: {formatCentavos(maxAmount)}
               </Text>
             </View>
+
+            {/* Pending transactions banner */}
+            {activeTransactions.filter((t) => t.status === 'pending').length > 0 && (
+              <View style={styles.pendingBanner}>
+                <Text style={styles.pendingText}>
+                  May {activeTransactions.filter((t) => t.status === 'pending').length} na pending na transaksyon — hinihintay ang approval ng tindahan.
+                </Text>
+              </View>
+            )}
+
+            {/* Nearest due date warning */}
+            {(() => {
+              const activeDue = activeTransactions
+                .filter((t) => t.status === 'approved' || t.status === 'settled')
+                .map((t) => ({ ...t, days: daysUntil(t.due_date) }))
+                .sort((a, b) => a.days - b.days);
+              const nearest = activeDue[0];
+              if (!nearest) return null;
+              if (nearest.days < 0) {
+                return (
+                  <View style={styles.urgentBanner}>
+                    <Text style={styles.urgentText}>
+                      May overdue ka nang {Math.abs(nearest.days)} araw! Magbayad agad para maiwasan ang penalty.
+                    </Text>
+                  </View>
+                );
+              }
+              if (nearest.days <= 3) {
+                return (
+                  <View style={styles.warningBanner}>
+                    <Text style={styles.warningText}>
+                      {nearest.days === 0
+                        ? 'Ngayong araw ang due date mo!'
+                        : `${nearest.days} araw na lang bago mag-due ang bayad mo.`}
+                    </Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Frozen/blocked status */}
+            {customer?.status === 'frozen' && (
+              <View style={styles.urgentBanner}>
+                <Text style={styles.urgentText}>
+                  Naka-freeze ang iyong account. Bayaran muna ang overdue na balanse.
+                </Text>
+              </View>
+            )}
+            {(customer?.status === 'blocked' || customer?.status === 'suspended') && (
+              <View style={styles.urgentBanner}>
+                <Text style={styles.urgentText}>
+                  Hindi aktibo ang iyong account. Makipag-ugnayan sa Datung support.
+                </Text>
+              </View>
+            )}
 
             {(custError || txnError) && (
               <ErrorBanner message={custError || txnError || ''} />
@@ -205,4 +266,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+
+  pendingBanner: {
+    backgroundColor: C.accentLight,
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  pendingText: { fontSize: 13, color: C.accent, lineHeight: 18, fontWeight: '600' },
+
+  warningBanner: {
+    backgroundColor: C.warningLight,
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  warningText: { fontSize: 13, color: C.warning, lineHeight: 18, fontWeight: '600' },
+
+  urgentBanner: {
+    backgroundColor: C.errorLight,
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  urgentText: { fontSize: 13, color: C.error, lineHeight: 18, fontWeight: '600' },
 });
