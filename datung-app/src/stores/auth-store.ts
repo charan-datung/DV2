@@ -7,7 +7,7 @@ import { authService } from '../services/auth-service';
 // Types
 // ---------------------------------------------------------------------------
 
-export type UserRole = 'store' | 'customer';
+export type UserRole = 'store' | 'customer' | 'admin';
 
 interface AuthState {
   // ---- State ----
@@ -53,11 +53,13 @@ interface AuthState {
 // Queries both tables in parallel; returns the role or null if unregistered.
 // ---------------------------------------------------------------------------
 async function detectRole(userId: string): Promise<UserRole | null> {
-  const [storeResult, customerResult] = await Promise.all([
+  const [adminResult, storeResult, customerResult] = await Promise.all([
+    supabase.from('admins').select('id').eq('user_id', userId).maybeSingle(),
     supabase.from('stores').select('id').eq('owner_id', userId).maybeSingle(),
     supabase.from('customers').select('id').eq('user_id', userId).maybeSingle(),
   ]);
 
+  if (adminResult.data) return 'admin';
   if (storeResult.data) return 'store';
   if (customerResult.data) return 'customer';
   return null;

@@ -104,6 +104,56 @@ export const customerService = {
     return data ?? [];
   },
 
+  /** Upload selfie photo (for Level 3+ verification) */
+  async uploadSelfie(customerId: string, uri: string): Promise<string> {
+    const fileName = `selfies/${customerId}_${Date.now()}.jpg`;
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const { error: uploadErr } = await supabase.storage
+      .from('customer-docs')
+      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: urlData } = supabase.storage
+      .from('customer-docs')
+      .getPublicUrl(fileName);
+
+    // Update customer record with selfie URL
+    await supabase
+      .from('customers')
+      .update({ selfie_url: urlData.publicUrl })
+      .eq('id', customerId);
+
+    return urlData.publicUrl;
+  },
+
+  /** Upload ID photo (for Level 3+ verification) */
+  async uploadIdPhoto(customerId: string, uri: string): Promise<string> {
+    const fileName = `ids/${customerId}_${Date.now()}.jpg`;
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const { error: uploadErr } = await supabase.storage
+      .from('customer-docs')
+      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: urlData } = supabase.storage
+      .from('customer-docs')
+      .getPublicUrl(fileName);
+
+    // Update customer record with ID photo URL
+    await supabase
+      .from('customers')
+      .update({ id_photo_url: urlData.publicUrl })
+      .eq('id', customerId);
+
+    return urlData.publicUrl;
+  },
+
   /** Request a new transaction at a store */
   async requestTransaction(data: {
     store_id: string;

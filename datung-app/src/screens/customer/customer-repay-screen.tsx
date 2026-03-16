@@ -16,7 +16,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { CustomerStackParamList } from '../../types/navigation';
 import { useTransactionDetail } from '../../hooks/use-transactions';
 import { transactionService } from '../../services/transaction-service';
-import { formatCentavos } from '../../utils/currency';
+import { formatCentavos, pesosToCentavos } from '../../utils/currency';
 import { userFriendlyError } from '../../utils/errors';
 import LoadingSpinner from '../../components/loading-spinner';
 import SuccessModal from '../../components/success-modal';
@@ -46,6 +46,8 @@ export default function CustomerRepayScreen() {
 
   const [method, setMethod] = useState<'gcash' | 'otc'>('gcash');
   const [referenceNo, setReferenceNo] = useState('');
+  const [customAmount, setCustomAmount] = useState('');
+  const [isPartial, setIsPartial] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,14 +60,25 @@ export default function CustomerRepayScreen() {
 
   const totalDue = transaction.amount_centavos + transaction.interest_centavos;
 
+  // Calculate previously paid amount from repayments
+  const { repayments } = useTransactionDetail(transactionId);
+  const alreadyPaid = repayments.reduce((sum, r) => sum + r.amount_centavos, 0);
+  const remainingDue = totalDue - alreadyPaid;
+
+  const paymentAmount = isPartial
+    ? pesosToCentavos(parseFloat(customAmount) || 0)
+    : remainingDue;
+  const isValidPayment = paymentAmount > 0 && paymentAmount <= remainingDue;
+
   const handleSubmit = async () => {
+    if (!isValidPayment) return;
     setError('');
     setIsSubmitting(true);
 
     try {
       await transactionService.submitRepayment({
         transaction_id: transactionId,
-        amount_centavos: totalDue,
+        amount_centavos: paymentAmount,
         method,
         reference_no: referenceNo.trim() || undefined,
       });
@@ -92,12 +105,59 @@ export default function CustomerRepayScreen() {
 
           {/* Amount summary */}
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total na babayaran</Text>
-            <Text style={styles.summaryAmount}>{formatCentavos(totalDue)}</Text>
+            <Text style={styles.summaryLabel}>Natitirang babayaran</Text>
+            <Text style={styles.summaryAmount}>{formatCentavos(remainingDue)}</Text>
             <Text style={styles.summaryBreakdown}>
               {formatCentavos(transaction.amount_centavos)} halaga +{' '}
               {formatCentavos(transaction.interest_centavos)} bayad-dagdag
             </Text>
+            {alreadyPaid > 0 && (
+              <Text style={[styles.summaryBreakdown, { color: C.primary, fontWeight: '600', marginTop: 4 }]}>
+                Nabayaran na: {formatCentavos(alreadyPaid)}
+              </Text>
+            )}
+          </View>
+
+          {/* Partial payment toggle */}
+          <View style={[styles.card, { marginBottom: 16 }]}>
+            <View style={styles.partialRow}>
+              <Pressable
+                style={[styles.partialOption, !isPartial && styles.partialSelected]}
+                onPress={() => { setIsPartial(false); setCustomAmount(''); }}
+              >
+                <Text style={[styles.partialText, !isPartial && styles.partialTextActive]}>
+                  Buong bayad
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.partialOption, isPartial && styles.partialSelected]}
+                onPress={() => setIsPartial(true)}
+              >
+                <Text style={[styles.partialText, isPartial && styles.partialTextActive]}>
+                  Partial
+                </Text>
+              </Pressable>
+            </View>
+
+            {isPartial && (
+              <>
+                <Text style={styles.label}>Halaga ng babayaran (Pesos)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={customAmount}
+                  onChangeText={(t) => setCustomAmount(t.replace(/[^0-9.]/g, ''))}
+                  placeholder={`Max: ${formatCentavos(remainingDue)}`}
+                  placeholderTextColor={C.disabled}
+                  keyboardType="decimal-pad"
+                  editable={!isSubmitting}
+                />
+                {paymentAmount > remainingDue && (
+                  <Text style={styles.errorText}>
+                    Lumagpas sa natitirang {formatCentavos(remainingDue)}.
+                  </Text>
+                )}
+              </>
+            )}
           </View>
 
           {/* Payment method */}
@@ -150,17 +210,17 @@ export default function CustomerRepayScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.btn,
-                isSubmitting && styles.btnDisabled,
-                pressed && !isSubmitting && styles.btnPressed,
+                (isSubmitting || !isValidPayment) && styles.btnDisabled,
+                pressed && isValidPayment && !isSubmitting && styles.btnPressed,
               ]}
               onPress={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isValidPayment}
             >
               {isSubmitting ? (
                 <ActivityIndicator color={C.white} />
               ) : (
                 <Text style={styles.btnText}>
-                  Bayaran — {formatCentavos(totalDue)}
+                  Bayaran — {formatCentavos(paymentAmount)}
                 </Text>
               )}
             </Pressable>
@@ -285,4 +345,13 @@ const styles = StyleSheet.create({
   btnPressed: { backgroundColor: C.primaryDark },
   btnDisabled: { backgroundColor: C.disabled },
   btnText: { fontSize: 16, fontWeight: '700', color: C.white },
+
+  partialRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  partialOption: {
+    flex: 1, paddingVertical: 10, borderRadius: 10,
+    alignItems: 'center', borderWidth: 1.5, borderColor: C.border,
+  },
+  partialSelected: { borderColor: C.primary, backgroundColor: C.primaryLight },
+  partialText: { fontSize: 14, fontWeight: '600', color: C.textSub },
+  partialTextActive: { color: C.primary },
 });

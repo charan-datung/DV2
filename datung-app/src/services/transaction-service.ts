@@ -70,26 +70,38 @@ export const transactionService = {
 
     if (error) throw error;
 
-    // Get the transaction to check due date and customer
+    // Get the transaction to check due date, customer, and total owed
     const { data: txn } = await supabase
       .from('transactions')
-      .select('customer_id, due_date, store_id, amount_centavos')
+      .select('customer_id, due_date, store_id, amount_centavos, interest_centavos')
       .eq('id', data.transaction_id)
       .single();
 
-    // Update transaction status to repaid
-    const { error: updateErr } = await supabase
-      .from('transactions')
-      .update({
-        status: 'repaid',
-        repaid_at: new Date().toISOString(),
-      })
-      .eq('id', data.transaction_id);
+    if (!txn) return repayment as Repayment;
 
-    if (updateErr) throw updateErr;
+    // Check total repayments to determine if fully paid
+    const { data: allRepayments } = await supabase
+      .from('repayments')
+      .select('amount_centavos')
+      .eq('transaction_id', data.transaction_id);
 
-    // Level progression: increment on_time_repayment_count if paid on time
-    if (txn) {
+    const totalPaid = (allRepayments ?? []).reduce((sum, r) => sum + r.amount_centavos, 0);
+    const totalOwed = txn.amount_centavos + txn.interest_centavos;
+    const isFullyPaid = totalPaid >= totalOwed;
+
+    // Only mark as repaid if the full amount has been paid
+    if (isFullyPaid) {
+      const { error: updateErr } = await supabase
+        .from('transactions')
+        .update({
+          status: 'repaid',
+          repaid_at: new Date().toISOString(),
+        })
+        .eq('id', data.transaction_id);
+
+      if (updateErr) throw updateErr;
+
+      // Level progression: increment on_time_repayment_count if paid on time
       const dueDate = new Date(txn.due_date);
       const now = new Date();
       const isOnTime = now <= new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // grace: end of due day
@@ -132,7 +144,7 @@ export const transactionService = {
         }
       }
 
-      // Restore store available balance on repayment
+      // Restore store available balance on full repayment
       const { data: store } = await supabase
         .from('stores')
         .select('available_balance')
