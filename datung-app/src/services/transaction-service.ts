@@ -20,7 +20,7 @@ export interface Repayment {
   id: string;
   transaction_id: string;
   amount_centavos: number;
-  method: 'gcash' | 'otc';
+  method: 'bank_qr' | 'otc';
   reference_no: string | null;
   created_at: string;
 }
@@ -54,7 +54,7 @@ export const transactionService = {
   async submitRepayment(data: {
     transaction_id: string;
     amount_centavos: number;
-    method: 'gcash' | 'otc';
+    method: 'bank_qr' | 'otc';
     reference_no?: string;
   }): Promise<Repayment> {
     const { data: repayment, error } = await supabase

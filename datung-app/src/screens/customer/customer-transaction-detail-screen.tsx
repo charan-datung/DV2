@@ -110,7 +110,7 @@ export default function CustomerTransactionDetailScreen() {
                     {formatCentavos(r.amount_centavos)}
                   </Text>
                   <Text style={styles.repaymentMeta}>
-                    {r.method === 'gcash' ? 'GCash' : 'Cash (OTC)'}
+                    {r.method === 'bank_qr' ? 'Bank Transfer / QR' : 'Cash (OTC)'}
                     {r.reference_no ? ` — ${r.reference_no}` : ''}
                   </Text>
                 </View>

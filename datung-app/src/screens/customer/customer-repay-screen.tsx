@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import QRCode from 'react-native-qrcode-svg';
 import type { CustomerStackParamList } from '../../types/navigation';
 import { useTransactionDetail } from '../../hooks/use-transactions';
 import { transactionService } from '../../services/transaction-service';
@@ -20,6 +22,16 @@ import { formatCentavos, pesosToCentavos } from '../../utils/currency';
 import { userFriendlyError } from '../../utils/errors';
 import LoadingSpinner from '../../components/loading-spinner';
 import SuccessModal from '../../components/success-modal';
+
+// ---------------------------------------------------------------------------
+// Datung payment details — update these before going live
+// ---------------------------------------------------------------------------
+const DATUNG_BANK = {
+  bankName: 'UnionBank of the Philippines',
+  accountName: 'Datung Financial Services',
+  accountNumber: '109601234567890',
+  instapayEnabled: true,
+};
 
 const C = {
   primary: '#0D5C37',
@@ -33,6 +45,8 @@ const C = {
   error: '#C62828',
   errorBg: '#FFEBEE',
   disabled: '#A8B4C0',
+  infoBg: '#EEF4FF',
+  infoBorder: '#B3C9F5',
 };
 
 type RouteType = RouteProp<CustomerStackParamList, 'CustomerRepay'>;
@@ -44,7 +58,7 @@ export default function CustomerRepayScreen() {
 
   const { transaction, isLoading: txnLoading } = useTransactionDetail(transactionId);
 
-  const [method, setMethod] = useState<'gcash' | 'otc'>('gcash');
+  const [method, setMethod] = useState<'bank_qr' | 'otc'>('bank_qr');
   const [referenceNo, setReferenceNo] = useState('');
   const [customAmount, setCustomAmount] = useState('');
   const [isPartial, setIsPartial] = useState(false);
@@ -69,6 +83,36 @@ export default function CustomerRepayScreen() {
     ? pesosToCentavos(parseFloat(customAmount) || 0)
     : remainingDue;
   const isValidPayment = paymentAmount > 0 && paymentAmount <= remainingDue;
+
+  // QR data encodes bank + amount so customer can screenshot and use it
+  const amountPesos = (paymentAmount / 100).toFixed(2);
+  const qrData = [
+    `DATUNG PAYMENT`,
+    `Bank: ${DATUNG_BANK.bankName}`,
+    `Account Name: ${DATUNG_BANK.accountName}`,
+    `Account No: ${DATUNG_BANK.accountNumber}`,
+    `Amount: PHP ${amountPesos}`,
+    `Ref: TXN-${transactionId.slice(0, 8).toUpperCase()}`,
+  ].join('\n');
+
+  const handleShareDetails = async () => {
+    try {
+      await Share.share({
+        message: [
+          '📲 Datung Payment Details',
+          `Bank: ${DATUNG_BANK.bankName}`,
+          `Account Name: ${DATUNG_BANK.accountName}`,
+          `Account No: ${DATUNG_BANK.accountNumber}`,
+          `Amount: ₱${amountPesos}`,
+          `Reference: TXN-${transactionId.slice(0, 8).toUpperCase()}`,
+          '',
+          'I-InstaPay o i-PESONet ang halagang ito at ilagay ang reference number sa ibaba.',
+        ].join('\n'),
+      });
+    } catch (_) {
+      // user dismissed share sheet — no action needed
+    }
+  };
 
   const handleSubmit = async () => {
     if (!isValidPayment) return;
@@ -164,19 +208,21 @@ export default function CustomerRepayScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Paraan ng Bayad</Text>
 
+            {/* Bank Transfer / QR option */}
             <Pressable
-              style={[styles.methodOption, method === 'gcash' && styles.methodSelected]}
-              onPress={() => setMethod('gcash')}
+              style={[styles.methodOption, method === 'bank_qr' && styles.methodSelected]}
+              onPress={() => setMethod('bank_qr')}
             >
-              <View style={[styles.radio, method === 'gcash' && styles.radioSelected]}>
-                {method === 'gcash' && <View style={styles.radioInner} />}
+              <View style={[styles.radio, method === 'bank_qr' && styles.radioSelected]}>
+                {method === 'bank_qr' && <View style={styles.radioInner} />}
               </View>
               <View>
-                <Text style={styles.methodTitle}>GCash</Text>
-                <Text style={styles.methodDesc}>Magpadala gamit ang GCash app</Text>
+                <Text style={styles.methodTitle}>Bank Transfer / QR</Text>
+                <Text style={styles.methodDesc}>InstaPay, PESONet, o online banking</Text>
               </View>
             </Pressable>
 
+            {/* Cash at store option */}
             <Pressable
               style={[styles.methodOption, method === 'otc' && styles.methodSelected]}
               onPress={() => setMethod('otc')}
@@ -190,15 +236,72 @@ export default function CustomerRepayScreen() {
               </View>
             </Pressable>
 
+            {/* Bank QR details panel */}
+            {method === 'bank_qr' && (
+              <View style={styles.bankPanel}>
+                {/* QR code */}
+                <View style={styles.qrContainer}>
+                  <QRCode
+                    value={qrData}
+                    size={180}
+                    color={C.text}
+                    backgroundColor={C.white}
+                  />
+                  <Text style={styles.qrHint}>I-screenshot ang QR na ito para sa pagbabayad</Text>
+                </View>
+
+                {/* Bank details */}
+                <View style={styles.bankDetails}>
+                  <Text style={styles.bankDetailsTitle}>Detalye ng Account</Text>
+                  <View style={styles.bankRow}>
+                    <Text style={styles.bankLabel}>Bangko</Text>
+                    <Text style={styles.bankValue}>{DATUNG_BANK.bankName}</Text>
+                  </View>
+                  <View style={styles.bankRow}>
+                    <Text style={styles.bankLabel}>Pangalan</Text>
+                    <Text style={styles.bankValue}>{DATUNG_BANK.accountName}</Text>
+                  </View>
+                  <View style={styles.bankRow}>
+                    <Text style={styles.bankLabel}>Account No.</Text>
+                    <Text style={[styles.bankValue, styles.bankAcctNo]}>
+                      {DATUNG_BANK.accountNumber}
+                    </Text>
+                  </View>
+                  <View style={styles.bankRow}>
+                    <Text style={styles.bankLabel}>Halaga</Text>
+                    <Text style={[styles.bankValue, { color: C.primary, fontWeight: '700' }]}>
+                      ₱{amountPesos}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Info note */}
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    💡 Gamitin ang InstaPay o PESONet sa iyong banking app. Pagkatapos
+                    magpadala, ilagay ang reference number sa ibaba at pindutin ang "Bayaran".
+                  </Text>
+                </View>
+
+                {/* Share button */}
+                <Pressable style={styles.shareBtn} onPress={handleShareDetails}>
+                  <Text style={styles.shareBtnText}>📤  I-share ang Detalye ng Bayad</Text>
+                </Pressable>
+              </View>
+            )}
+
             {/* Reference number */}
-            <Text style={styles.label}>Reference Number (opsyonal)</Text>
+            <Text style={styles.label}>
+              {method === 'bank_qr' ? 'Reference Number ng Transfer' : 'Resibo # (opsyonal)'}
+            </Text>
             <TextInput
               style={styles.input}
               value={referenceNo}
               onChangeText={setReferenceNo}
-              placeholder={method === 'gcash' ? 'GCash reference #' : 'Resibo #'}
+              placeholder={method === 'bank_qr' ? 'InstaPay / PESONet ref #' : 'Resibo #'}
               placeholderTextColor={C.disabled}
               editable={!isSubmitting}
+              autoCapitalize="characters"
             />
 
             {!!error && (
@@ -308,6 +411,70 @@ const styles = StyleSheet.create({
   },
   methodTitle: { fontSize: 14, fontWeight: '700', color: C.text },
   methodDesc: { fontSize: 12, color: C.textSub, marginTop: 2 },
+
+  // Bank QR panel
+  bankPanel: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    backgroundColor: C.white,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 20,
+    marginBottom: 12,
+  },
+  qrHint: {
+    fontSize: 11,
+    color: C.textSub,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  bankDetails: {
+    backgroundColor: C.bg,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+  },
+  bankDetailsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.text,
+    marginBottom: 10,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  bankLabel: { fontSize: 12, color: C.textSub, flex: 1 },
+  bankValue: { fontSize: 13, color: C.text, fontWeight: '600', flex: 2, textAlign: 'right' },
+  bankAcctNo: { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', letterSpacing: 1 },
+
+  infoBox: {
+    backgroundColor: C.infoBg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.infoBorder,
+    padding: 12,
+    marginBottom: 12,
+  },
+  infoText: { fontSize: 12, color: '#2C4A8A', lineHeight: 18 },
+
+  shareBtn: {
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  shareBtnText: { fontSize: 14, fontWeight: '600', color: C.primary },
 
   label: {
     fontSize: 13,
