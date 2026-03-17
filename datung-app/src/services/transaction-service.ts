@@ -107,56 +107,16 @@ export const transactionService = {
       const isOnTime = now <= new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // grace: end of due day
 
       if (isOnTime) {
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('on_time_repayment_count, level')
-          .eq('id', txn.customer_id)
-          .single();
-
-        if (customer) {
-          const newCount = customer.on_time_repayment_count + 1;
-          // Level upgrade thresholds: 2 → L1, 5 → L2, 10 → L3, 20 → L4
-          const UPGRADE_THRESHOLDS: Record<number, number> = { 0: 2, 1: 5, 2: 10, 3: 20 };
-          const threshold = UPGRADE_THRESHOLDS[customer.level];
-          const shouldUpgrade = threshold !== undefined && newCount >= threshold && customer.level < 4;
-
-          await supabase
-            .from('customers')
-            .update({
-              on_time_repayment_count: newCount,
-              ...(shouldUpgrade ? { level: customer.level + 1 } : {}),
-            })
-            .eq('id', txn.customer_id);
-        }
+        // Use an RPC for atomic increment + conditional level upgrade to avoid
+        // read-then-write races when multiple repayments are submitted concurrently.
+        await supabase.rpc('process_on_time_repayment', { p_customer_id: txn.customer_id });
       } else {
-        // Late payment: reset customer back one level
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('level')
-          .eq('id', txn.customer_id)
-          .single();
-
-        if (customer && customer.level > 0) {
-          await supabase
-            .from('customers')
-            .update({ level: customer.level - 1 })
-            .eq('id', txn.customer_id);
-        }
+        // Late payment: atomically decrement level (floor 0) via RPC.
+        await supabase.rpc('process_late_repayment', { p_customer_id: txn.customer_id });
       }
 
-      // Restore store available balance on full repayment
-      const { data: store } = await supabase
-        .from('stores')
-        .select('available_balance')
-        .eq('id', txn.store_id)
-        .single();
-
-      if (store) {
-        await supabase
-          .from('stores')
-          .update({ available_balance: store.available_balance + txn.amount_centavos })
-          .eq('id', txn.store_id);
-      }
+      // Store balance is restored atomically by the trg_update_store_balance trigger
+      // when the transaction transitions to 'repaid'. No app-level update needed.
     }
 
     return repayment as Repayment;

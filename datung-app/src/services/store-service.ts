@@ -53,9 +53,13 @@ export const storeService = {
 
   /** Get the store owned by the current user */
   async getMyStore(): Promise<Store | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('stores')
       .select('*')
+      .eq('owner_id', user.id)
       .limit(1)
       .maybeSingle();
 
@@ -214,7 +218,8 @@ export const storeService = {
     return { valid: true };
   },
 
-  /** Approve a pending transaction — validates rules, creates store interview, deducts balance */
+  /** Approve a pending transaction — validates rules, creates store interview, updates status.
+   *  Balance deduction is handled atomically by the trg_update_store_balance DB trigger. */
   async approveTransaction(
     transactionId: string,
     storeId: string,
@@ -239,30 +244,9 @@ export const storeService = {
 
     if (interviewErr) throw interviewErr;
 
-    // Get transaction amount for balance deduction
-    const { data: txn } = await supabase
-      .from('transactions')
-      .select('amount_centavos')
-      .eq('id', transactionId)
-      .single();
-
-    // Deduct from store available balance
-    if (txn) {
-      const { data: store } = await supabase
-        .from('stores')
-        .select('available_balance')
-        .eq('id', storeId)
-        .single();
-
-      if (store) {
-        await supabase
-          .from('stores')
-          .update({ available_balance: store.available_balance - txn.amount_centavos })
-          .eq('id', storeId);
-      }
-    }
-
-    // Update transaction status to approved
+    // Update transaction status to approved.
+    // The trg_update_store_balance trigger atomically deducts available_balance
+    // when status transitions from pending → approved.
     const { data, error } = await supabase
       .from('transactions')
       .update({

@@ -59,7 +59,7 @@ export default function CustomerRepayScreen() {
   const route = useRoute<RouteType>();
   const { transactionId } = route.params;
 
-  const { transaction, isLoading: txnLoading } = useTransactionDetail(transactionId);
+  const { transaction, repayments, isLoading: txnLoading } = useTransactionDetail(transactionId);
 
   const [method, setMethod] = useState<'bank_qr' | 'otc'>('bank_qr');
   const [referenceNo, setReferenceNo] = useState('');
@@ -78,7 +78,6 @@ export default function CustomerRepayScreen() {
   const totalDue = transaction.amount_centavos + transaction.interest_centavos;
 
   // Calculate previously paid amount from repayments
-  const { repayments } = useTransactionDetail(transactionId);
   const alreadyPaid = repayments.reduce((sum, r) => sum + r.amount_centavos, 0);
   const remainingDue = totalDue - alreadyPaid;
 

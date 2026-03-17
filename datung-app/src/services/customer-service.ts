@@ -55,9 +55,13 @@ export const customerService = {
 
   /** Get the current user's customer profile */
   async getMyProfile(): Promise<Customer | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('customers')
       .select('*')
+      .eq('user_id', user.id)
       .limit(1)
       .maybeSingle();
 
