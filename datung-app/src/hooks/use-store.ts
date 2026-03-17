@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { storeService, type Store, type StoreCustomer } from '../services/store-service';
+import type { TransactionDetail } from '../services/transaction-service';
 import { useRealtime } from './use-realtime';
 
 /** Fetches and caches the current user's store */
@@ -57,7 +58,7 @@ export function useStoreCustomers(storeId: string | undefined) {
 
 /** Fetches transactions for a store with realtime updates */
 export function useStoreTransactions(storeId: string | undefined) {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<TransactionDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +68,7 @@ export function useStoreTransactions(storeId: string | undefined) {
       setIsLoading(true);
       setError(null);
       const txns = await storeService.getTransactions(storeId);
-      setTransactions(txns);
+      setTransactions(txns as TransactionDetail[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transactions');
     } finally {
@@ -79,11 +80,12 @@ export function useStoreTransactions(storeId: string | undefined) {
     fetch();
   }, [fetch]);
 
-  // Auto-refresh when transactions change in realtime
+  // Auto-refresh when transactions change in realtime — pass fetch directly
+  // so the ref in useRealtime always calls the latest version.
   useRealtime(
     'transactions',
     '*',
-    () => fetch(),
+    fetch,
     storeId ? `store_id=eq.${storeId}` : undefined,
   );
 

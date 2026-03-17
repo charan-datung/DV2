@@ -149,34 +149,39 @@ export const storeService = {
     customerId: string,
   ): Promise<{ valid: boolean; reason?: string }> {
     // 1. Check store status
-    const { data: store } = await supabase
+    // Use maybeSingle() so a missing row returns null data instead of an error
+    const { data: store, error: storeErr } = await supabase
       .from('stores')
       .select('status, available_balance')
       .eq('id', storeId)
-      .single();
+      .maybeSingle();
 
+    if (storeErr) throw storeErr;
     if (!store) return { valid: false, reason: 'Hindi nahanap ang tindahan.' };
     if (store.status === 'frozen') return { valid: false, reason: 'Naka-freeze ang tindahan. Hindi maaaring mag-approve ng transaksyon.' };
     if (store.status === 'suspended' || store.status === 'blocked') return { valid: false, reason: 'Hindi aktibo ang tindahan.' };
 
     // 2. Check customer status
-    const { data: customer } = await supabase
+    const { data: customer, error: custErr } = await supabase
       .from('customers')
       .select('status, level, on_time_repayment_count, recent_default_count')
       .eq('id', customerId)
-      .single();
+      .maybeSingle();
 
+    if (custErr) throw custErr;
     if (!customer) return { valid: false, reason: 'Hindi nahanap ang customer.' };
     if (customer.status === 'frozen') return { valid: false, reason: 'Naka-freeze ang customer na ito.' };
     if (customer.status === 'blocked') return { valid: false, reason: 'Na-block ang customer na ito sa sistema.' };
     if (customer.status === 'suspended') return { valid: false, reason: 'Naka-suspend ang customer na ito.' };
 
     // 3. Check the transaction itself
-    const { data: txn } = await supabase
+    const { data: txn, error: txnErr } = await supabase
       .from('transactions')
       .select('amount_centavos, status')
       .eq('id', transactionId)
-      .single();
+      .maybeSingle();
+
+    if (txnErr) throw txnErr;
 
     if (!txn) return { valid: false, reason: 'Hindi nahanap ang transaksyon.' };
     if (txn.status !== 'pending') return { valid: false, reason: 'Hindi na pending ang transaksyon na ito.' };

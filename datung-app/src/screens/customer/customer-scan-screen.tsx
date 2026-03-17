@@ -18,6 +18,7 @@ import {
   getTermDays,
 } from '../../services/customer-service';
 import { calculateInterest, formatCentavos, pesosToCentavos } from '../../utils/currency';
+import { getTodayManila, addDays } from '../../utils/date';
 import { userFriendlyError } from '../../utils/errors';
 import SuccessModal from '../../components/success-modal';
 
@@ -61,10 +62,12 @@ export default function CustomerScanScreen() {
   // Global outstanding balance (approved + settled transactions)
   const totalOutstanding = (activeTxns ?? [])
     .filter((t) => t.status === 'approved' || t.status === 'settled')
-    .reduce((sum: number, t: any) => sum + t.amount_centavos, 0);
+    .reduce((sum: number, t) => sum + t.amount_centavos, 0);
   const availableCentavos = Math.max(0, maxCentavos - totalOutstanding);
 
-  const amountCentavos = pesosToCentavos(parseFloat(amount) || 0);
+  // Use explicit NaN check so typing non-numeric text doesn't silently produce 0
+  const parsedAmount = parseFloat(amount);
+  const amountCentavos = isNaN(parsedAmount) ? 0 : pesosToCentavos(parsedAmount);
   const isValidAmount = amountCentavos > 0 && amountCentavos <= availableCentavos;
   const interestCentavos = isValidAmount ? calculateInterest(amountCentavos, termDays) : 0;
 
@@ -80,10 +83,9 @@ export default function CustomerScanScreen() {
     setError('');
     setIsLoading(true);
 
-    // Calculate due date
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + termDays);
-    const dueDateStr = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    // Calculate due date using Manila's current date so the term is correct
+    // for PH users (toISOString() returns UTC which can be the wrong calendar day).
+    const dueDateStr = addDays(getTodayManila(), termDays);
 
     try {
       await customerService.requestTransaction({

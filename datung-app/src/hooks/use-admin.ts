@@ -30,8 +30,8 @@ export function useAdminKPIs() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  useRealtime('transactions', '*', () => fetch());
-  useRealtime('settlements', '*', () => fetch());
+  useRealtime('transactions', '*', fetch);
+  useRealtime('settlements', '*', fetch);
 
   return { kpis, isLoading, error, refetch: fetch };
 }
@@ -105,7 +105,7 @@ export function useAdminTransactions(filter?: { status?: string }) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  useRealtime('transactions', '*', () => fetch());
+  useRealtime('transactions', '*', fetch);
 
   return { transactions, isLoading, error, refetch: fetch };
 }
@@ -131,7 +131,7 @@ export function useOverdueTransactions() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  useRealtime('transactions', '*', () => fetch());
+  useRealtime('transactions', '*', fetch);
 
   return { transactions, isLoading, error, refetch: fetch };
 }
@@ -157,7 +157,7 @@ export function useAdminSettlements(filter?: { status?: string }) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  useRealtime('settlements', '*', () => fetch());
+  useRealtime('settlements', '*', fetch);
 
   return { settlements, isLoading, error, refetch: fetch };
 }

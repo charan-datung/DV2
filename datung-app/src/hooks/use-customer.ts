@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { customerService, type Customer } from '../services/customer-service';
+import type { TransactionDetail } from '../services/transaction-service';
 import { useRealtime } from './use-realtime';
 
 /** Fetches and caches the current user's customer profile */
@@ -30,7 +31,7 @@ export function useMyCustomer() {
 
 /** Fetches the customer's transactions with realtime updates */
 export function useCustomerTransactions() {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<TransactionDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export function useCustomerTransactions() {
       setIsLoading(true);
       setError(null);
       const txns = await customerService.getMyTransactions();
-      setTransactions(txns);
+      setTransactions(txns as TransactionDetail[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transactions');
     } finally {
@@ -51,16 +52,17 @@ export function useCustomerTransactions() {
     fetch();
   }, [fetch]);
 
-  // Auto-refresh on realtime changes
-  useRealtime('transactions', '*', () => fetch());
-  useRealtime('repayments', '*', () => fetch());
+  // Auto-refresh on realtime changes — pass fetch directly so the ref in
+  // useRealtime always calls the latest version without subscription churn.
+  useRealtime('transactions', '*', fetch);
+  useRealtime('repayments', '*', fetch);
 
   return { transactions, isLoading, error, refetch: fetch };
 }
 
 /** Fetches only active (non-terminal) transactions */
 export function useActiveTransactions() {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<TransactionDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +71,7 @@ export function useActiveTransactions() {
       setIsLoading(true);
       setError(null);
       const txns = await customerService.getActiveTransactions();
-      setTransactions(txns);
+      setTransactions(txns as TransactionDetail[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transactions');
     } finally {
@@ -81,7 +83,7 @@ export function useActiveTransactions() {
     fetch();
   }, [fetch]);
 
-  useRealtime('transactions', '*', () => fetch());
+  useRealtime('transactions', '*', fetch);
 
   return { transactions, isLoading, error, refetch: fetch };
 }

@@ -6,11 +6,21 @@ import {
 } from '../services/transaction-service';
 import { useRealtime } from './use-realtime';
 
+export interface GuaranteeEvent {
+  id: string;
+  transaction_id: string;
+  store_id: string;
+  event_type: 'day3_notify' | 'day5_freeze' | 'day10_reduce' | 'day30_permanent';
+  store_share_centavos: number;
+  datung_share_centavos: number;
+  created_at: string;
+}
+
 /** Fetches a single transaction by ID with realtime updates */
 export function useTransactionDetail(transactionId: string | undefined) {
   const [transaction, setTransaction] = useState<TransactionDetail | null>(null);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
-  const [guaranteeEvents, setGuaranteeEvents] = useState<any[]>([]);
+  const [guaranteeEvents, setGuaranteeEvents] = useState<GuaranteeEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +36,7 @@ export function useTransactionDetail(transactionId: string | undefined) {
       ]);
       setTransaction(txn);
       setRepayments(reps);
-      setGuaranteeEvents(events);
+      setGuaranteeEvents(events as GuaranteeEvent[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transaction');
     } finally {
@@ -38,18 +48,19 @@ export function useTransactionDetail(transactionId: string | undefined) {
     fetch();
   }, [fetch]);
 
-  // Realtime updates for this specific transaction
+  // Realtime updates for this specific transaction — pass fetch directly
+  // so the ref in useRealtime always calls the latest version.
   useRealtime(
     'transactions',
     '*',
-    () => fetch(),
+    fetch,
     transactionId ? `id=eq.${transactionId}` : undefined,
   );
 
   useRealtime(
     'repayments',
     '*',
-    () => fetch(),
+    fetch,
     transactionId ? `transaction_id=eq.${transactionId}` : undefined,
   );
 

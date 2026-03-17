@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '../config/supabase';
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
@@ -7,16 +7,26 @@ type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
  * Subscribes to Supabase realtime changes on a table.
  * Calls `onEvent` whenever a matching row change occurs.
  * Automatically cleans up the subscription on unmount.
+ *
+ * Uses a ref for the callback so the subscription never becomes stale
+ * without needing to resubscribe on every render.
  */
 export function useRealtime(
   table: string,
   event: RealtimeEvent,
-  onEvent: (payload: { new: any; old: any; eventType: string }) => void,
+  onEvent: () => void,
   filter?: string,
 ) {
+  // Always keep a ref to the latest callback so realtime events
+  // never call a stale closure.
+  const onEventRef = useRef(onEvent);
   useEffect(() => {
-    let channel = supabase
-      .channel(`realtime:${table}:${Date.now()}`)
+    onEventRef.current = onEvent;
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`realtime:${table}:${event}:${filter ?? 'all'}:${Math.random()}`)
       .on(
         'postgres_changes' as any,
         {
@@ -25,12 +35,8 @@ export function useRealtime(
           table,
           ...(filter ? { filter } : {}),
         },
-        (payload: any) => {
-          onEvent({
-            new: payload.new,
-            old: payload.old,
-            eventType: payload.eventType,
-          });
+        () => {
+          onEventRef.current();
         },
       )
       .subscribe();
@@ -38,6 +44,5 @@ export function useRealtime(
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, event, filter]);
 }

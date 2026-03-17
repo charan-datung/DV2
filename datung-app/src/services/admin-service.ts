@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { getTodayManila } from '../utils/date';
 
 export interface AdminKPI {
   total_stores: number;
@@ -159,7 +160,7 @@ export const adminService = {
       .from('transactions')
       .select('*, stores(name), customers(name, phone, level)')
       .in('status', ['approved', 'settled'])
-      .lt('due_date', new Date().toISOString().split('T')[0])
+      .lt('due_date', getTodayManila())
       .order('due_date', { ascending: true });
 
     if (error) throw error;

@@ -81,8 +81,9 @@ export default function CustomerRepayScreen() {
   const alreadyPaid = repayments.reduce((sum, r) => sum + r.amount_centavos, 0);
   const remainingDue = totalDue - alreadyPaid;
 
+  const parsedCustom = parseFloat(customAmount);
   const paymentAmount = isPartial
-    ? pesosToCentavos(parseFloat(customAmount) || 0)
+    ? (isNaN(parsedCustom) ? 0 : pesosToCentavos(parsedCustom))
     : remainingDue;
   const isValidPayment = paymentAmount > 0 && paymentAmount <= remainingDue;
 

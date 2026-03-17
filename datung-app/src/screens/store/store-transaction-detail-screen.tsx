@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { StoreStackParamList } from '../../types/navigation';
 import { useTransactionDetail } from '../../hooks/use-transactions';
 import { storeService } from '../../services/store-service';
@@ -54,8 +55,10 @@ const TRUST_REASONS: Record<string, string> = {
 
 type RouteType = RouteProp<StoreStackParamList, 'StoreTransactionDetail'>;
 
+type Nav = NativeStackNavigationProp<StoreStackParamList>;
+
 export default function StoreTransactionDetailScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const route = useRoute<RouteType>();
   const { transactionId } = route.params;
 
@@ -115,7 +118,7 @@ export default function StoreTransactionDetailScreen() {
           <Text style={styles.amount}>{formatCentavos(transaction.amount_centavos)}</Text>
           {transaction.interest_centavos > 0 && (
             <Text style={styles.interest}>
-              + {formatCentavos(transaction.interest_centavos)} interest
+              + {formatCentavos(transaction.interest_centavos)} bayad-dagdag
             </Text>
           )}
         </View>
