@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import QRCode from 'react-native-qrcode-svg';
 import type { CustomerStackParamList } from '../../types/navigation';
 import { useTransactionDetail } from '../../hooks/use-transactions';
 import { transactionService } from '../../services/transaction-service';
@@ -24,14 +24,17 @@ import LoadingSpinner from '../../components/loading-spinner';
 import SuccessModal from '../../components/success-modal';
 
 // ---------------------------------------------------------------------------
-// Datung payment details — update these before going live
+// Datung payment details
 // ---------------------------------------------------------------------------
 const DATUNG_BANK = {
-  bankName: 'UnionBank of the Philippines',
-  accountName: 'Datung Financial Services',
-  accountNumber: '109601234567890',
+  bankName: 'Asia United Bank',
+  accountName: 'Dark Knight Lending Incorporated',
+  accountNumber: '097010001403',
+  branch: 'Pasong Tamo Ponte Branch',
   instapayEnabled: true,
 };
+
+const AUB_QR = require('../../../assets/aub-qr.png');
 
 const C = {
   primary: '#0D5C37',
@@ -84,16 +87,7 @@ export default function CustomerRepayScreen() {
     : remainingDue;
   const isValidPayment = paymentAmount > 0 && paymentAmount <= remainingDue;
 
-  // QR data encodes bank + amount so customer can screenshot and use it
   const amountPesos = (paymentAmount / 100).toFixed(2);
-  const qrData = [
-    `DATUNG PAYMENT`,
-    `Bank: ${DATUNG_BANK.bankName}`,
-    `Account Name: ${DATUNG_BANK.accountName}`,
-    `Account No: ${DATUNG_BANK.accountNumber}`,
-    `Amount: PHP ${amountPesos}`,
-    `Ref: TXN-${transactionId.slice(0, 8).toUpperCase()}`,
-  ].join('\n');
 
   const handleShareDetails = async () => {
     try {
@@ -101,6 +95,7 @@ export default function CustomerRepayScreen() {
         message: [
           '📲 Datung Payment Details',
           `Bank: ${DATUNG_BANK.bankName}`,
+          `Branch: ${DATUNG_BANK.branch}`,
           `Account Name: ${DATUNG_BANK.accountName}`,
           `Account No: ${DATUNG_BANK.accountNumber}`,
           `Amount: ₱${amountPesos}`,
@@ -241,11 +236,10 @@ export default function CustomerRepayScreen() {
               <View style={styles.bankPanel}>
                 {/* QR code */}
                 <View style={styles.qrContainer}>
-                  <QRCode
-                    value={qrData}
-                    size={180}
-                    color={C.text}
-                    backgroundColor={C.white}
+                  <Image
+                    source={AUB_QR}
+                    style={styles.qrImage}
+                    resizeMode="contain"
                   />
                   <Text style={styles.qrHint}>I-screenshot ang QR na ito para sa pagbabayad</Text>
                 </View>
@@ -256,6 +250,10 @@ export default function CustomerRepayScreen() {
                   <View style={styles.bankRow}>
                     <Text style={styles.bankLabel}>Bangko</Text>
                     <Text style={styles.bankValue}>{DATUNG_BANK.bankName}</Text>
+                  </View>
+                  <View style={styles.bankRow}>
+                    <Text style={styles.bankLabel}>Sangay</Text>
+                    <Text style={styles.bankValue}>{DATUNG_BANK.branch}</Text>
                   </View>
                   <View style={styles.bankRow}>
                     <Text style={styles.bankLabel}>Pangalan</Text>
@@ -425,6 +423,10 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     padding: 20,
     marginBottom: 12,
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
   },
   qrHint: {
     fontSize: 11,
