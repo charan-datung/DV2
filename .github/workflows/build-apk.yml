@@ -1,0 +1,64 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'claude/**'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile (preview = debug APK, development = dev client APK)'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - development
+
+jobs:
+  build:
+    name: Build APK (${{ github.event.inputs.profile || 'preview' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: datung-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: datung-app
+        run: npm ci
+
+      - name: Set up EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build APK via EAS
+        working-directory: datung-app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile ${{ github.event.inputs.profile || 'preview' }} \
+            --platform android \
+            --non-interactive \
+            --output ./build/app.apk
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: datung-app-${{ github.event.inputs.profile || 'preview' }}-${{ github.run_number }}
+          path: datung-app/build/app.apk
+          retention-days: 30
+
+      - name: Print APK download info
+        run: |
+          echo "✅ APK built successfully!"
+          echo "Download it from the Actions tab → this run → Artifacts section"
