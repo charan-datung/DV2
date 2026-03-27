@@ -3,7 +3,7 @@
 
 export default {
   expo: {
-    name: 'datung-app',
+    name: 'Datung',
     slug: 'datung-app',
     version: '1.0.0',
     orientation: 'portrait',
@@ -13,7 +13,7 @@ export default {
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#1a56db',
     },
     ios: {
       supportsTablet: true,
@@ -23,18 +23,31 @@ export default {
       package: 'com.datung.app',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#1a56db',
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
     },
     web: {
       favicon: './assets/favicon.png',
+      bundler: 'metro',
+      output: 'single',
+      // PWA Configuration
+      name: 'Datung',
+      shortName: 'Datung',
+      description: 'Micro-lending app for sari-sari stores',
+      lang: 'en',
+      themeColor: '#1a56db',
+      backgroundColor: '#ffffff',
+      display: 'standalone',
+      startUrl: '/',
+      scope: '/',
     },
     // Injected from .env via EXPO_PUBLIC_ prefix — readable at runtime via expo-constants
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     },
+    plugins: [],
   },
 };

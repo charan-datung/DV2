@@ -1,7 +1,7 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import type { CustomerStackParamList } from '../types/navigation';
 import CustomerHomeScreen from '../screens/customer/customer-home-screen';
 import CustomerScanScreen from '../screens/customer/customer-scan-screen';
@@ -14,11 +14,11 @@ type CustomerTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
-const Stack = createNativeStackNavigator<CustomerStackParamList>();
+const Stack = createStackNavigator<CustomerStackParamList>();
 
 function CustomerHomeStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: Platform.OS !== 'web' }}>
       <Stack.Screen name="CustomerHome" component={CustomerHomeScreen} />
       <Stack.Screen name="CustomerTransactionDetail" component={CustomerTransactionDetailScreen} />
       <Stack.Screen name="CustomerRepay" component={CustomerRepayScreen} />
@@ -28,7 +28,7 @@ function CustomerHomeStack() {
 
 function CustomerScanStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: Platform.OS !== 'web' }}>
       <Stack.Screen name="CustomerScan" component={CustomerScanScreen} />
     </Stack.Navigator>
   );

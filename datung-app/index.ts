@@ -1,4 +1,7 @@
-// URL polyfill must be the very first import — supabase-js uses the URL API internally
+// Gesture handler must be the very first import for web compatibility
+import 'react-native-gesture-handler';
+
+// URL polyfill must load before any URL parsing (including supabase-js)
 import 'react-native-url-polyfill/auto';
 
 import { registerRootComponent } from 'expo';

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import type { StoreStackParamList } from '../types/navigation';
 import StoreHomeScreen from '../screens/store/store-home-screen';
 import StoreCustomersScreen from '../screens/store/store-customers-screen';
@@ -15,11 +15,11 @@ type StoreTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<StoreTabParamList>();
-const Stack = createNativeStackNavigator<StoreStackParamList>();
+const Stack = createStackNavigator<StoreStackParamList>();
 
 function StoreHomeStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: Platform.OS !== 'web' }}>
       <Stack.Screen name="StoreHome" component={StoreHomeScreen} />
       <Stack.Screen name="StoreTransactionDetail" component={StoreTransactionDetailScreen} />
     </Stack.Navigator>
@@ -28,7 +28,7 @@ function StoreHomeStack() {
 
 function StoreCustomersStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: Platform.OS !== 'web' }}>
       <Stack.Screen name="StoreCustomers" component={StoreCustomersScreen} />
     </Stack.Navigator>
   );
@@ -36,7 +36,7 @@ function StoreCustomersStack() {
 
 function StoreSettingsStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animationEnabled: Platform.OS !== 'web' }}>
       <Stack.Screen name="StoreSettings" component={StoreSettingsScreen} />
     </Stack.Navigator>
   );

@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --web --port 3000",
+    "dev": "expo start --web --port 3000",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
+    "web": "expo start --web --port 3000",
+    "export:web": "expo export --platform web",
     "build:dev": "eas build --profile development --platform android",
     "build:preview": "eas build --profile preview --platform android",
     "build:prod": "eas build --profile production --platform android",
@@ -19,6 +21,8 @@
     "@react-navigation/bottom-tabs": "^7.14.0",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.13.0",
+    "@react-navigation/stack": "^7.3.0",
+    "react-native-gesture-handler": "^2.24.0",
     "@supabase/supabase-js": "^2.97.0",
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
@@ -40,6 +44,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@expo/metro-config": "^0.20.5",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },

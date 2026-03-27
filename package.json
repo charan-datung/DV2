@@ -1,0 +1,24 @@
+{
+  "name": "datung-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd datung-app && npm run dev",
+    "start": "cd datung-app && npm run start",
+    "build": "cd datung-app && npm run export:web",
+    "postinstall": "cd datung-app && npm install"
+  },
+  "dependencies": {
+    "@expo/metro-config": "^55.0.11",
+    "@react-navigation/bottom-tabs": "^7.15.8",
+    "@react-navigation/native": "^7.2.1",
+    "@react-navigation/stack": "^7.8.8",
+    "expo": "^55.0.8",
+    "expo-status-bar": "^55.0.4",
+    "react": "^19.2.4",
+    "react-native": "^0.84.1",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-url-polyfill": "^3.0.0"
+  }
+}
