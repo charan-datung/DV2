@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd datung-app && npm install && npx expo export --platform web",
+  "outputDirectory": "datung-app/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
