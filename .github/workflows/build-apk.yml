@@ -7,10 +7,6 @@ on:
       - master
       - 'claude/**'
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     inputs:
       profile:
         description: 'Build profile (preview = debug APK, development = dev client APK)'
@@ -20,6 +16,9 @@ env:
         options:
           - preview
           - development
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
