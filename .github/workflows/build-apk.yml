@@ -44,6 +44,7 @@ jobs:
         run: npm install -g eas-cli
 
       - name: Build APK via EAS
+        id: eas_build
         working-directory: datung-app
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -52,16 +53,30 @@ jobs:
             --profile ${{ github.event.inputs.profile || 'preview' }} \
             --platform android \
             --non-interactive \
-            --output ./build/app.apk
+            --wait \
+            --json 2>/dev/null | tee /tmp/eas-output.json || true
+          BUILD_URL=$(python3 -c "
+          import json, sys
+          try:
+              data = json.load(open('/tmp/eas-output.json'))
+              if isinstance(data, list): data = data[0]
+              print(data.get('artifacts', {}).get('buildUrl', '') or data.get('buildUrl', ''))
+          except: pass
+          ")
+          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+          echo "APK download URL: $BUILD_URL"
+
+      - name: Download APK
+        if: steps.eas_build.outputs.build_url != ''
+        run: |
+          mkdir -p datung-app/build
+          curl -L "${{ steps.eas_build.outputs.build_url }}" -o datung-app/build/app.apk
+          echo "APK size: $(du -h datung-app/build/app.apk | cut -f1)"
 
       - name: Upload APK as artifact
+        if: steps.eas_build.outputs.build_url != ''
         uses: actions/upload-artifact@v4
         with:
           name: datung-app-${{ github.event.inputs.profile || 'preview' }}-${{ github.run_number }}
           path: datung-app/build/app.apk
           retention-days: 30
-
-      - name: Print APK download info
-        run: |
-          echo "✅ APK built successfully!"
-          echo "Download it from the Actions tab → this run → Artifacts section"
