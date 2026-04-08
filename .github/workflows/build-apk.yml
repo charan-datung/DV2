@@ -7,6 +7,10 @@ on:
       - master
       - 'claude/**'
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     inputs:
       profile:
         description: 'Build profile (preview = debug APK, development = dev client APK)'
@@ -35,7 +39,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: datung-app
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Set up EAS CLI
         run: npm install -g eas-cli
