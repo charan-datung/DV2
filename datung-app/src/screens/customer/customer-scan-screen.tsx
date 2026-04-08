@@ -83,13 +83,26 @@ export default function CustomerScanScreen() {
     setError('');
     setIsLoading(true);
 
-    // Calculate due date using Manila's current date so the term is correct
-    // for PH users (toISOString() returns UTC which can be the wrong calendar day).
-    const dueDateStr = addDays(getTodayManila(), termDays);
-
     try {
+      // Validate store exists and is active before creating transaction
+      const store = await customerService.validateStore(storeId.trim());
+      if (!store) {
+        setError('Hindi mahanap ang store. Suriin ang Store ID at subukan muli.');
+        setIsLoading(false);
+        return;
+      }
+      if (store.status !== 'active') {
+        setError('Hindi aktibo ang store na ito. Pumili ng ibang tindahan.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Calculate due date using Manila's current date so the term is correct
+      // for PH users (toISOString() returns UTC which can be the wrong calendar day).
+      const dueDateStr = addDays(getTodayManila(), termDays);
+
       await customerService.requestTransaction({
-        store_id: storeId.trim(),
+        store_id: store.id,
         customer_id: customer.id,
         amount_centavos: amountCentavos,
         interest_centavos: interestCentavos,

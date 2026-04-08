@@ -26,6 +26,9 @@ export function useMyCustomer() {
     fetch();
   }, [fetch]);
 
+  // Realtime: refresh when customer profile changes (level ups, status, etc.)
+  useRealtime('customers', '*', fetch);
+
   return { customer, isLoading, error, refetch: fetch };
 }
 
@@ -84,6 +87,7 @@ export function useActiveTransactions() {
   }, [fetch]);
 
   useRealtime('transactions', '*', fetch);
+  useRealtime('repayments', '*', fetch);
 
   return { transactions, isLoading, error, refetch: fetch };
 }

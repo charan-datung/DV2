@@ -87,9 +87,13 @@ export const customerService = {
 
   /** Get all transactions for the current customer */
   async getMyTransactions() {
+    const profile = await this.getMyProfile();
+    if (!profile) return [];
+
     const { data, error } = await supabase
       .from('transactions')
       .select('*, stores(name, address)')
+      .eq('customer_id', profile.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -98,14 +102,30 @@ export const customerService = {
 
   /** Get active (non-terminal) transactions */
   async getActiveTransactions() {
+    const profile = await this.getMyProfile();
+    if (!profile) return [];
+
     const { data, error } = await supabase
       .from('transactions')
       .select('*, stores(name, address)')
+      .eq('customer_id', profile.id)
       .in('status', ['pending', 'approved', 'settled'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data ?? [];
+  },
+
+  /** Validate that a store exists and is active, returns store or null */
+  async validateStore(storeId: string) {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id, name, address, status')
+      .eq('id', storeId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
   },
 
   /** Upload selfie photo (for Level 3+ verification) */
@@ -125,11 +145,12 @@ export const customerService = {
       .getPublicUrl(fileName);
 
     // Update customer record with selfie URL
-    await supabase
+    const { error: updateErr } = await supabase
       .from('customers')
       .update({ selfie_url: urlData.publicUrl })
       .eq('id', customerId);
 
+    if (updateErr) throw updateErr;
     return urlData.publicUrl;
   },
 
@@ -150,11 +171,12 @@ export const customerService = {
       .getPublicUrl(fileName);
 
     // Update customer record with ID photo URL
-    await supabase
+    const { error: updateErr } = await supabase
       .from('customers')
       .update({ id_photo_url: urlData.publicUrl })
       .eq('id', customerId);
 
+    if (updateErr) throw updateErr;
     return urlData.publicUrl;
   },
 

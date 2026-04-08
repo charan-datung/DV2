@@ -20,11 +20,11 @@ interface Props {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  pending: { label: 'Pending', color: '#E65100', bg: '#FFF3E0' },
-  approved: { label: 'Approved', color: '#1565C0', bg: '#E3F2FD' },
-  settled: { label: 'Settled', color: '#2E7D32', bg: '#E8F5E9' },
+  pending: { label: 'Hinihintay', color: '#E65100', bg: '#FFF3E0' },
+  approved: { label: 'Aprubado', color: '#1565C0', bg: '#E3F2FD' },
+  settled: { label: 'Na-settle', color: '#2E7D32', bg: '#E8F5E9' },
   repaid: { label: 'Bayad na', color: '#0D5C37', bg: '#E8F5EE' },
-  defaulted: { label: 'Defaulted', color: '#C62828', bg: '#FFEBEE' },
+  defaulted: { label: 'Hindi nabayaran', color: '#C62828', bg: '#FFEBEE' },
 };
 
 export default function TransactionCard({ transaction, subtitle, onPress }: Props) {
@@ -32,8 +32,8 @@ export default function TransactionCard({ transaction, subtitle, onPress }: Prop
   const days = daysUntil(transaction.due_date);
   const isOverdue = days < 0 && !['repaid', 'defaulted'].includes(transaction.status);
 
-  // Urgency color for countdown
-  const isActive = ['approved', 'settled', 'pending'].includes(transaction.status);
+  // Urgency color for countdown — only for approved/settled, NOT pending
+  const isActive = ['approved', 'settled'].includes(transaction.status);
   const countdownColor = isOverdue ? '#C62828' : days <= 1 ? '#C62828' : days <= 3 ? '#E65100' : days <= 7 ? '#F4A200' : '#5E6A7A';
 
   return (

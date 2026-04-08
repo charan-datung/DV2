@@ -36,6 +36,8 @@ const C = {
   disabled: '#A8B4C0',
   otpBox: '#EEF2F7',
   otpBoxFocus: '#E8F5EE',
+  successBg: '#E8F5EE',
+  successText: '#0D5C37',
 };
 
 // ---------------------------------------------------------------------------
@@ -61,7 +63,23 @@ function mapErrorMessage(err: unknown): string {
   if (/network|fetch|connect/i.test(msg)) {
     return 'Walang koneksyon. Suriin ang internet at subukan muli.';
   }
+  if (/invalid.*login|invalid.*credentials/i.test(msg)) {
+    return 'Mali ang email o password. Subukan muli.';
+  }
+  if (/user.*already.*registered|already.*exists/i.test(msg)) {
+    return 'May account na gamit ang email na ito. Mag-login na lang.';
+  }
+  if (/password.*short|at least/i.test(msg)) {
+    return 'Ang password ay dapat 6 na character o higit pa.';
+  }
+  if (/invalid.*email|email.*invalid/i.test(msg)) {
+    return 'Mali ang format ng email.';
+  }
   return 'May nangyaring mali. Subukan muli.';
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
 // ---------------------------------------------------------------------------
@@ -114,39 +132,91 @@ function OtpInput({
   );
 }
 
+/** Tab selector for auth mode */
+function AuthModeTabs({
+  mode,
+  onChangeMode,
+}: {
+  mode: 'phone' | 'email';
+  onChangeMode: (m: 'phone' | 'email') => void;
+}) {
+  return (
+    <View style={styles.tabRow}>
+      <Pressable
+        style={[styles.tab, mode === 'phone' && styles.tabActive]}
+        onPress={() => onChangeMode('phone')}
+      >
+        <Text style={[styles.tabText, mode === 'phone' && styles.tabTextActive]}>
+          Phone OTP
+        </Text>
+      </Pressable>
+      <Pressable
+        style={[styles.tab, mode === 'email' && styles.tabActive]}
+        onPress={() => onChangeMode('email')}
+      >
+        <Text style={[styles.tabText, mode === 'email' && styles.tabTextActive]}>
+          Email
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
-type Step = 'phone' | 'otp';
+type PhoneStep = 'phone' | 'otp';
+type EmailStep = 'login' | 'signup' | 'confirm';
 
 export default function LoginScreen() {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { sendOtp, verifyOtp } = useAuthStore();
+  const { sendOtp, verifyOtp, signInWithEmail, signUpWithEmail } = useAuthStore();
 
-  const [step, setStep] = useState<Step>('phone');
+  // Auth mode: phone OTP or email/password
+  const [authMode, setAuthMode] = useState<'phone' | 'email'>('email');
+
+  // Phone OTP state
+  const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone');
   const [phone, setPhone] = useState('');
-  // The formatted +63XXXXXXXX returned after sendOtp succeeds
   const [formattedPhone, setFormattedPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Email state
+  const [emailStep, setEmailStep] = useState<EmailStep>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Shared state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
 
   const phoneRef = useRef<TextInput>(null);
 
-  // ---- Hardware back: go back to phone step instead of exiting ----
+  // ---- Hardware back: go back instead of exiting ----
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (step === 'otp') {
-        setStep('phone');
+      if (phoneStep === 'otp' && authMode === 'phone') {
+        setPhoneStep('phone');
         setOtp('');
         setError('');
-        return true; // prevent default (exit)
+        return true;
+      }
+      if (emailStep === 'signup' && authMode === 'email') {
+        setEmailStep('login');
+        setError('');
+        return true;
+      }
+      if (emailStep === 'confirm' && authMode === 'email') {
+        setEmailStep('login');
+        setError('');
+        return true;
       }
       return false;
     });
     return () => sub.remove();
-  }, [step]);
+  }, [phoneStep, emailStep, authMode]);
 
   // ---- Resend cooldown timer ----
   useEffect(() => {
@@ -169,21 +239,27 @@ export default function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp]);
 
+  // ---- Clear error on mode/step change ----
+  const handleModeChange = useCallback((m: 'phone' | 'email') => {
+    setAuthMode(m);
+    setError('');
+  }, []);
+
+  // ------------------------------------------------------------------
+  // Phone OTP handlers
   // ------------------------------------------------------------------
   const handleSendOtp = useCallback(async () => {
     setError('');
-
     const trimmed = phone.trim();
     if (!isValidPhilippinePhone(trimmed)) {
       setError('Mali ang format ng numero. Gamitin ang: 9XXXXXXXXX');
       return;
     }
-
     setIsLoading(true);
     try {
       const normalised = await sendOtp(trimmed);
       setFormattedPhone(normalised);
-      setStep('otp');
+      setPhoneStep('otp');
       setResendCooldown(RESEND_COOLDOWN);
     } catch (err) {
       setError(mapErrorMessage(err));
@@ -192,19 +268,15 @@ export default function LoginScreen() {
     }
   }, [phone, sendOtp]);
 
-  // ------------------------------------------------------------------
   const handleVerify = useCallback(async () => {
     if (otp.length < 6) return;
     setError('');
     setIsLoading(true);
-
     try {
       const { needsRegistration } = await verifyOtp(formattedPhone, otp);
       if (needsRegistration) {
         navigation.navigate('RoleSelect');
       }
-      // If not needsRegistration the root navigator will redirect to the
-      // correct home screen once isAuthenticated + role are set in the store.
     } catch (err) {
       setError(mapErrorMessage(err));
       setOtp('');
@@ -213,7 +285,6 @@ export default function LoginScreen() {
     }
   }, [otp, formattedPhone, verifyOtp, navigation]);
 
-  // ------------------------------------------------------------------
   const handleResend = useCallback(async () => {
     if (resendCooldown > 0) return;
     setError('');
@@ -230,9 +301,67 @@ export default function LoginScreen() {
   }, [resendCooldown, phone, sendOtp]);
 
   // ------------------------------------------------------------------
+  // Email handlers
+  // ------------------------------------------------------------------
+  const handleEmailLogin = useCallback(async () => {
+    setError('');
+    if (!isValidEmail(email)) {
+      setError('Mali ang format ng email.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Ang password ay dapat 6 na character o higit pa.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { needsRegistration } = await signInWithEmail(email.trim(), password);
+      if (needsRegistration) {
+        navigation.navigate('RoleSelect');
+      }
+    } catch (err) {
+      setError(mapErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email, password, signInWithEmail, navigation]);
+
+  const handleEmailSignup = useCallback(async () => {
+    setError('');
+    if (!isValidEmail(email)) {
+      setError('Mali ang format ng email.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Ang password ay dapat 6 na character o higit pa.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Hindi magkatugma ang password.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await signUpWithEmail(email.trim(), password);
+      if (result.confirmationRequired) {
+        setEmailStep('confirm');
+      } else if (result.needsRegistration) {
+        navigation.navigate('RoleSelect');
+      }
+    } catch (err) {
+      setError(mapErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email, password, confirmPassword, signUpWithEmail, navigation]);
+
+  // ------------------------------------------------------------------
   const maskedPhone = formattedPhone
     ? formattedPhone.replace(/(\+63\d{3})\d{4}(\d{3})/, '$1****$2')
     : '';
+
+  const emailLoginReady = isValidEmail(email) && password.length >= 6;
+  const emailSignupReady = emailLoginReady && confirmPassword.length >= 6;
 
   // ------------------------------------------------------------------
   return (
@@ -258,14 +387,19 @@ export default function LoginScreen() {
 
           {/* ---- Card ---- */}
           <View style={styles.card}>
-            {step === 'phone' ? (
+            {/* Tab switcher */}
+            <AuthModeTabs mode={authMode} onChangeMode={handleModeChange} />
+
+            {/* ============================================ */}
+            {/* PHONE OTP MODE                               */}
+            {/* ============================================ */}
+            {authMode === 'phone' && phoneStep === 'phone' && (
               <>
-                <Text style={styles.cardTitle}>Mag-login</Text>
+                <Text style={styles.cardTitle}>Mag-login gamit ang Phone</Text>
                 <Text style={styles.cardSub}>
                   Ilagay ang iyong numero ng telepono
                 </Text>
 
-                {/* Phone input */}
                 <Text style={styles.label}>Numero ng Telepono</Text>
                 <View style={styles.phoneRow}>
                   <View style={styles.prefixBox}>
@@ -289,14 +423,12 @@ export default function LoginScreen() {
                   />
                 </View>
 
-                {/* Error */}
                 {!!error && (
                   <View style={styles.errorBox}>
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
 
-                {/* Send OTP button */}
                 <Pressable
                   style={({ pressed }) => [
                     styles.btn,
@@ -317,9 +449,11 @@ export default function LoginScreen() {
                   Magpapadala kami ng 6-digit na code sa iyong numero.
                 </Text>
               </>
-            ) : (
+            )}
+
+            {authMode === 'phone' && phoneStep === 'otp' && (
               <>
-                <Pressable onPress={() => { setStep('phone'); setOtp(''); setError(''); }}>
+                <Pressable onPress={() => { setPhoneStep('phone'); setOtp(''); setError(''); }}>
                   <Text style={styles.backLink}>← Bumalik</Text>
                 </Pressable>
 
@@ -329,17 +463,14 @@ export default function LoginScreen() {
                   <Text style={styles.phoneHighlight}>{maskedPhone}</Text>
                 </Text>
 
-                {/* OTP boxes */}
                 <OtpInput value={otp} onChange={setOtp} onSubmit={handleVerify} />
 
-                {/* Error */}
                 {!!error && (
                   <View style={styles.errorBox}>
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
 
-                {/* Verify button */}
                 <Pressable
                   style={({ pressed }) => [
                     styles.btn,
@@ -356,7 +487,6 @@ export default function LoginScreen() {
                   )}
                 </Pressable>
 
-                {/* Resend */}
                 <Pressable
                   onPress={handleResend}
                   disabled={resendCooldown > 0 || isLoading}
@@ -373,14 +503,189 @@ export default function LoginScreen() {
                       : 'Hindi natanggap? Magpadala ulit'}
                   </Text>
                 </Pressable>
+              </>
+            )}
 
-                {/* Dev helper */}
-                {__DEV__ && (
-                  <Text style={styles.devHint}>
-                    Dev: Gamitin ang test numbers mula sa .env{'\n'}
-                    OTP = 123456
-                  </Text>
+            {/* ============================================ */}
+            {/* EMAIL LOGIN MODE                             */}
+            {/* ============================================ */}
+            {authMode === 'email' && emailStep === 'login' && (
+              <>
+                <Text style={styles.cardTitle}>Mag-login</Text>
+                <Text style={styles.cardSub}>
+                  Gamitin ang iyong email at password
+                </Text>
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={(t) => { setError(''); setEmail(t); }}
+                  placeholder="you@example.com"
+                  placeholderTextColor={C.disabled}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(t) => { setError(''); setPassword(t); }}
+                  placeholder="••••••••"
+                  placeholderTextColor={C.disabled}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  onSubmitEditing={handleEmailLogin}
+                />
+
+                {!!error && (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
                 )}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.btn,
+                    (isLoading || !emailLoginReady) && styles.btnDisabled,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={handleEmailLogin}
+                  disabled={isLoading || !emailLoginReady}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color={C.white} />
+                  ) : (
+                    <Text style={styles.btnText}>Mag-login</Text>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => { setEmailStep('signup'); setError(''); }}
+                  style={styles.switchBtn}
+                >
+                  <Text style={styles.switchText}>
+                    Wala pang account? <Text style={styles.switchLink}>Mag-sign up</Text>
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* ============================================ */}
+            {/* EMAIL SIGNUP MODE                            */}
+            {/* ============================================ */}
+            {authMode === 'email' && emailStep === 'signup' && (
+              <>
+                <Pressable onPress={() => { setEmailStep('login'); setError(''); }}>
+                  <Text style={styles.backLink}>← Bumalik</Text>
+                </Pressable>
+
+                <Text style={styles.cardTitle}>Gumawa ng Account</Text>
+                <Text style={styles.cardSub}>
+                  Mag-sign up gamit ang email at password
+                </Text>
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={(t) => { setError(''); setEmail(t); }}
+                  placeholder="you@example.com"
+                  placeholderTextColor={C.disabled}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(t) => { setError(''); setPassword(t); }}
+                  placeholder="6+ characters"
+                  placeholderTextColor={C.disabled}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+
+                <Text style={styles.label}>Kumpirmahin ang Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={(t) => { setError(''); setConfirmPassword(t); }}
+                  placeholder="Ulitin ang password"
+                  placeholderTextColor={C.disabled}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  onSubmitEditing={handleEmailSignup}
+                />
+
+                {!!error && (
+                  <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.btn,
+                    (isLoading || !emailSignupReady) && styles.btnDisabled,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={handleEmailSignup}
+                  disabled={isLoading || !emailSignupReady}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color={C.white} />
+                  ) : (
+                    <Text style={styles.btnText}>Mag-sign up</Text>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => { setEmailStep('login'); setError(''); }}
+                  style={styles.switchBtn}
+                >
+                  <Text style={styles.switchText}>
+                    May account na? <Text style={styles.switchLink}>Mag-login</Text>
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* ============================================ */}
+            {/* EMAIL CONFIRMATION NOTICE                    */}
+            {/* ============================================ */}
+            {authMode === 'email' && emailStep === 'confirm' && (
+              <>
+                <View style={styles.confirmBox}>
+                  <Text style={styles.confirmIcon}>✓</Text>
+                  <Text style={styles.cardTitle}>Tingnan ang Email</Text>
+                  <Text style={styles.cardSub}>
+                    Nagpadala kami ng confirmation link sa{'\n'}
+                    <Text style={styles.phoneHighlight}>{email}</Text>
+                    {'\n\n'}
+                    I-click ang link para ma-activate ang iyong account,
+                    tapos bumalik dito para mag-login.
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.btn,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={() => { setEmailStep('login'); setError(''); }}
+                >
+                  <Text style={styles.btnText}>Bumalik sa Login</Text>
+                </Pressable>
               </>
             )}
           </View>
@@ -444,6 +749,37 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  // Tabs
+  tabRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderRadius: 10,
+    backgroundColor: C.bg,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: C.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.textSub,
+  },
+  tabTextActive: {
+    color: C.primary,
+  },
+
   // Card
   card: {
     backgroundColor: C.white,
@@ -478,6 +814,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: C.text,
     marginBottom: 8,
+  },
+
+  // Generic input
+  input: {
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: C.text,
+    backgroundColor: C.white,
+    marginBottom: 16,
   },
 
   // Phone row
@@ -604,7 +953,7 @@ const styles = StyleSheet.create({
     height: 1,
   },
 
-  // Back / resend
+  // Back / resend / switch
   backLink: {
     fontSize: 14,
     color: C.primary,
@@ -624,15 +973,28 @@ const styles = StyleSheet.create({
   resendDisabled: {
     color: C.disabled,
   },
-
-  devHint: {
+  switchBtn: {
     marginTop: 16,
-    fontSize: 11,
-    color: C.accent,
-    textAlign: 'center',
-    lineHeight: 16,
-    backgroundColor: '#FFF8E1',
-    borderRadius: 6,
-    padding: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  switchText: {
+    fontSize: 13,
+    color: C.textSub,
+  },
+  switchLink: {
+    color: C.primary,
+    fontWeight: '700',
+  },
+
+  // Confirmation
+  confirmBox: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  confirmIcon: {
+    fontSize: 48,
+    color: C.primary,
+    marginBottom: 12,
   },
 });

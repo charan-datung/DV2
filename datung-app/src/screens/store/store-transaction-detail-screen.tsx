@@ -44,6 +44,14 @@ const ESCALATION_LABELS: Record<string, string> = {
   day30_permanent: 'Araw 30 — Permanent na block',
 };
 
+const STATUS_TAGALOG: Record<string, string> = {
+  pending: 'Hinihintay',
+  approved: 'Aprubado',
+  settled: 'Na-settle',
+  repaid: 'Bayad na',
+  defaulted: 'Hindi nabayaran',
+};
+
 const TRUST_REASONS: Record<string, string> = {
   neighbor_5yr: 'Kapitbahay (5+ taon)',
   regular_suki: 'Regular na suki',
@@ -127,8 +135,8 @@ export default function StoreTransactionDetailScreen() {
         <View style={styles.card}>
           <InfoRow label="Customer" value={transaction.customers?.name ?? '-'} />
           <InfoRow label="Level" value={`Level ${transaction.customers?.level ?? 0}`} />
-          <InfoRow label="Status" value={transaction.status} />
-          <InfoRow label="Due Date" value={formatDate(transaction.due_date)} />
+          <InfoRow label="Status" value={STATUS_TAGALOG[transaction.status] ?? transaction.status} />
+          <InfoRow label="Takdang Araw" value={formatDate(transaction.due_date)} />
           {isOverdue && (
             <InfoRow
               label="Overdue"
@@ -136,12 +144,12 @@ export default function StoreTransactionDetailScreen() {
               valueColor={C.error}
             />
           )}
-          <InfoRow label="Created" value={formatDateTime(transaction.created_at)} />
+          <InfoRow label="Petsa" value={formatDateTime(transaction.created_at)} />
           {transaction.approved_at && (
-            <InfoRow label="Approved" value={formatDateTime(transaction.approved_at)} />
+            <InfoRow label="Na-approve" value={formatDateTime(transaction.approved_at)} />
           )}
           {transaction.repaid_at && (
-            <InfoRow label="Repaid" value={formatDateTime(transaction.repaid_at)} />
+            <InfoRow label="Nabayaran" value={formatDateTime(transaction.repaid_at)} />
           )}
         </View>
 
@@ -156,7 +164,7 @@ export default function StoreTransactionDetailScreen() {
                     {formatCentavos(r.amount_centavos)}
                   </Text>
                   <Text style={styles.repaymentMeta}>
-                    {r.method === 'bank_qr' ? 'Bank Transfer / QR' : 'Cash (OTC)'}
+                    {r.method === 'bank_qr' ? 'Bank Transfer / QR' : r.method === 'gcash' ? 'GCash' : 'Cash (OTC)'}
                     {r.reference_no ? ` — ${r.reference_no}` : ''}
                   </Text>
                 </View>
@@ -166,8 +174,8 @@ export default function StoreTransactionDetailScreen() {
           </View>
         )}
 
-        {/* Commission info (for approved/settled/repaid) */}
-        {['approved', 'settled', 'repaid'].includes(transaction.status) && (
+        {/* Commission info (only earned on repaid) */}
+        {transaction.status === 'repaid' && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Komisyon</Text>
             <InfoRow

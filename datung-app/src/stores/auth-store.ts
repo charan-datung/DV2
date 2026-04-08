@@ -19,13 +19,13 @@ interface AuthState {
 
   // ---- Actions ----
   /**
-   * Step 1 of login: sends OTP to the phone.
+   * Step 1 of phone login: sends OTP to the phone.
    * Returns the normalised +63XXXXXXXXXX so the OTP screen can pass it back.
    */
   sendOtp: (phone: string) => Promise<string>;
 
   /**
-   * Step 2 of login: verifies the OTP.
+   * Step 2 of phone login: verifies the OTP.
    * Returns { needsRegistration: true } when the user has no store or customer
    * profile yet — the caller should navigate to RoleSelect.
    */
@@ -33,6 +33,25 @@ interface AuthState {
     phone: string,
     token: string,
   ) => Promise<{ needsRegistration: boolean }>;
+
+  /**
+   * Email/password login.
+   * Returns { needsRegistration: true } if authenticated but no profile exists.
+   */
+  signInWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ needsRegistration: boolean }>;
+
+  /**
+   * Create account with email/password.
+   * Returns { confirmationRequired } if email verification is needed,
+   * otherwise { needsRegistration } like other auth flows.
+   */
+  signUpWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ needsRegistration: boolean; confirmationRequired: boolean }>;
 
   /** Manually set the role (used after the user picks a role on RoleSelect) */
   setRole: (role: UserRole) => void;
@@ -59,6 +78,7 @@ async function detectRole(userId: string): Promise<UserRole | null> {
     supabase.from('customers').select('id').eq('user_id', userId).maybeSingle(),
   ]);
 
+  // Ignore individual query errors — treat as "not found" for that role
   if (adminResult.data) return 'admin';
   if (storeResult.data) return 'store';
   if (customerResult.data) return 'customer';
@@ -86,6 +106,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     const role = await detectRole(user.id);
     set({ user, role, isAuthenticated: true });
     return { needsRegistration: role === null };
+  },
+
+  // ------------------------------------------------------------------
+  signInWithEmail: async (email, password) => {
+    const { user } = await authService.signInWithPassword(email, password);
+    const role = await detectRole(user.id);
+    set({ user, role, isAuthenticated: true });
+    return { needsRegistration: role === null };
+  },
+
+  // ------------------------------------------------------------------
+  signUpWithEmail: async (email, password) => {
+    const result = await authService.signUpWithEmail(email, password);
+    if (result.confirmationRequired) {
+      return { needsRegistration: false, confirmationRequired: true };
+    }
+    if (result.user) {
+      const role = await detectRole(result.user.id);
+      set({ user: result.user, role, isAuthenticated: true });
+      return { needsRegistration: role === null, confirmationRequired: false };
+    }
+    throw new Error('Hindi na-create ang account. Subukan muli.');
   },
 
   // ------------------------------------------------------------------

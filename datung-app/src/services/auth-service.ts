@@ -96,6 +96,49 @@ export const authService = {
   },
 
   /**
+   * Signs in with email + password.
+   * Returns the Supabase session + user on success.
+   */
+  async signInWithPassword(
+    email: string,
+    password: string,
+  ): Promise<{ user: User; session: Session }> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) throw error;
+    if (!data.user || !data.session) {
+      throw new Error('Hindi makapag-login. Subukan muli.');
+    }
+
+    return { user: data.user, session: data.session };
+  },
+
+  /**
+   * Creates a new account with email + password.
+   * Returns the user (and session if email confirmation is disabled).
+   */
+  async signUpWithEmail(
+    email: string,
+    password: string,
+  ): Promise<{ user: User | null; session: Session | null; confirmationRequired: boolean }> {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) throw error;
+
+    return {
+      user: data.user ?? null,
+      session: data.session ?? null,
+      confirmationRequired: !data.session,
+    };
+  },
+
+  /**
    * Subscribes to auth state changes.
    * Returns the subscription object; call `.subscription.unsubscribe()` to clean up.
    */

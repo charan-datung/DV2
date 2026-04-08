@@ -64,5 +64,12 @@ export function useTransactionDetail(transactionId: string | undefined) {
     transactionId ? `transaction_id=eq.${transactionId}` : undefined,
   );
 
+  useRealtime(
+    'guarantee_events',
+    '*',
+    fetch,
+    transactionId ? `transaction_id=eq.${transactionId}` : undefined,
+  );
+
   return { transaction, repayments, guaranteeEvents, isLoading, error, refetch: fetch };
 }

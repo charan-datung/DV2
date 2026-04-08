@@ -42,8 +42,8 @@ export default function CustomerRegistrationScreen() {
     setIsLoading(true);
 
     try {
-      // Phone number comes from the auth session
-      const phone = user.phone ?? '';
+      // Phone from auth session; email users get their email as identifier
+      const phone = user.phone || user.email || user.id;
       await customerService.register({
         user_id: user.id,
         phone,

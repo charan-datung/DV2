@@ -26,6 +26,9 @@ export function useMyStore() {
     fetch();
   }, [fetch]);
 
+  // Realtime: refresh when store data changes (balance, status, credit line)
+  useRealtime('stores', '*', fetch);
+
   return { store, isLoading, error, refetch: fetch };
 }
 
@@ -52,6 +55,9 @@ export function useStoreCustomers(storeId: string | undefined) {
   useEffect(() => {
     fetch();
   }, [fetch]);
+
+  // Realtime: refresh when new transactions appear (new customers at the store)
+  useRealtime('transactions', '*', fetch, storeId ? `store_id=eq.${storeId}` : undefined);
 
   return { customers, isLoading, error, refetch: fetch };
 }

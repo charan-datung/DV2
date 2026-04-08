@@ -20,7 +20,7 @@ export interface Repayment {
   id: string;
   transaction_id: string;
   amount_centavos: number;
-  method: 'bank_qr' | 'otc';
+  method: 'bank_qr' | 'otc' | 'gcash';
   reference_no: string | null;
   created_at: string;
 }
@@ -54,7 +54,7 @@ export const transactionService = {
   async submitRepayment(data: {
     transaction_id: string;
     amount_centavos: number;
-    method: 'bank_qr' | 'otc';
+    method: 'bank_qr' | 'otc' | 'gcash';
     reference_no?: string;
   }): Promise<Repayment> {
     const { data: repayment, error } = await supabase
@@ -102,9 +102,11 @@ export const transactionService = {
       if (updateErr) throw updateErr;
 
       // Level progression: increment on_time_repayment_count if paid on time
+      // Grace: end of due day (23:59:59.999 in UTC of the due date)
       const dueDate = new Date(txn.due_date);
+      const endOfDueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), 23, 59, 59, 999);
       const now = new Date();
-      const isOnTime = now <= new Date(dueDate.getTime() + 24 * 60 * 60 * 1000); // grace: end of due day
+      const isOnTime = now <= endOfDueDay;
 
       if (isOnTime) {
         // Use an RPC for atomic increment + conditional level upgrade to avoid

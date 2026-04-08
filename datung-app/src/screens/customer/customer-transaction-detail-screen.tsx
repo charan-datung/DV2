@@ -27,6 +27,14 @@ const C = {
   error: '#C62828',
 };
 
+const STATUS_TAGALOG: Record<string, string> = {
+  pending: 'Hinihintay',
+  approved: 'Aprubado',
+  settled: 'Na-settle',
+  repaid: 'Bayad na',
+  defaulted: 'Hindi nabayaran',
+};
+
 type RouteType = RouteProp<CustomerStackParamList, 'CustomerTransactionDetail'>;
 type Nav = NativeStackNavigationProp<CustomerStackParamList>;
 
@@ -77,7 +85,7 @@ export default function CustomerTransactionDetailScreen() {
         {/* Info card */}
         <View style={styles.card}>
           <InfoRow label="Tindahan" value={transaction.stores?.name ?? '-'} />
-          <InfoRow label="Status" value={transaction.status} />
+          <InfoRow label="Status" value={STATUS_TAGALOG[transaction.status] ?? transaction.status} />
           <InfoRow label="Takdang Araw" value={formatDate(transaction.due_date)} />
           {isOverdue && (
             <InfoRow
