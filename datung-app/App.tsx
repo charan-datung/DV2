@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/stores/auth-store';
 import RootNavigator from './src/navigation/root-navigator';
 import LoadingSpinner from './src/components/loading-spinner';
+import { isMisconfigured } from './src/config/supabase';
 
 // ---------------------------------------------------------------------------
 // Error Boundary — prevents total white-screen crashes
@@ -104,11 +105,15 @@ function AppInner() {
 
   const runInit = React.useCallback(async () => {
     setInitError(null);
+    if (isMisconfigured) {
+      setInitError('__misconfigured__');
+      return;
+    }
     try {
       await initialize();
     } catch (err) {
       console.error('[Datung] Auth init failed:', err);
-      setInitError('Hindi ma-connect sa server. Suriin ang internet at subukan muli.');
+      setInitError('network');
     }
   }, [initialize]);
 
@@ -116,12 +121,30 @@ function AppInner() {
     runInit();
   }, [runInit]);
 
+  if (initError === '__misconfigured__') {
+    return (
+      <SafeAreaView style={crashStyles.safe}>
+        <Text style={crashStyles.icon}>⚙️</Text>
+        <Text style={crashStyles.heading}>App not configured</Text>
+        <Text style={crashStyles.body}>
+          Supabase credentials are missing from this build.{'\n\n'}
+          In Vercel → Project Settings → Environment Variables, add:{'\n'}
+          {'  '}EXPO_PUBLIC_SUPABASE_URL{'\n'}
+          {'  '}EXPO_PUBLIC_SUPABASE_ANON_KEY{'\n\n'}
+          Then redeploy.
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   if (initError) {
     return (
       <SafeAreaView style={crashStyles.safe}>
         <Text style={crashStyles.icon}>📶</Text>
         <Text style={crashStyles.heading}>Walang koneksyon</Text>
-        <Text style={crashStyles.body}>{initError}</Text>
+        <Text style={crashStyles.body}>
+          Hindi ma-connect sa server. Suriin ang internet at subukan muli.
+        </Text>
         <Pressable
           style={({ pressed }) => [crashStyles.btn, pressed && crashStyles.btnPressed]}
           onPress={runInit}

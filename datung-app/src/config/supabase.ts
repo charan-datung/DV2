@@ -16,27 +16,34 @@ const extra = Constants.expoConfig?.extra as
 const supabaseUrl = extra?.supabaseUrl ?? '';
 const supabaseAnonKey = extra?.supabaseAnonKey ?? '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Soft warning in dev so the app still boots; hard failure would prevent
-  // seeing the error screen on first setup.
+/**
+ * True when the app was built without Supabase credentials baked in.
+ * On Vercel this happens when EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY
+ * are not set in the project's Environment Variables before the build runs.
+ */
+export const isMisconfigured = !supabaseUrl || !supabaseAnonKey;
+
+if (isMisconfigured) {
   console.warn(
     '[Datung] Missing Supabase credentials.\n' +
-      'Copy .env.example → .env and fill in EXPO_PUBLIC_SUPABASE_URL ' +
-      'and EXPO_PUBLIC_SUPABASE_ANON_KEY, then restart the dev server.',
+      'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY ' +
+      'in Vercel → Project Settings → Environment Variables, then redeploy.',
   );
 }
 
 // ---------------------------------------------------------------------------
 // Supabase client
 // ---------------------------------------------------------------------------
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    // Persist the session in AsyncStorage so users stay logged in across
-    // app restarts.
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    // Must be false for React Native — there is no URL to detect a session in.
-    detectSessionInUrl: false,
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',   // avoid createClient crash on empty string
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
   },
-});
+);
+
