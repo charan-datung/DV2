@@ -25,6 +25,7 @@
     "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "^17.0.10",
     "expo-constants": "^18.0.13",
+    "expo-image-picker": "^55.0.18",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",

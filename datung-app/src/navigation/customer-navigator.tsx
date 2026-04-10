@@ -7,10 +7,12 @@ import CustomerHomeScreen from '../screens/customer/customer-home-screen';
 import CustomerScanScreen from '../screens/customer/customer-scan-screen';
 import CustomerTransactionDetailScreen from '../screens/customer/customer-transaction-detail-screen';
 import CustomerRepayScreen from '../screens/customer/customer-repay-screen';
+import CustomerProfileScreen from '../screens/customer/customer-profile-screen';
 
 type CustomerTabParamList = {
   HomeTab: undefined;
   ScanTab: undefined;
+  ProfileTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -22,6 +24,7 @@ function CustomerHomeStack() {
       <Stack.Screen name="CustomerHome" component={CustomerHomeScreen} />
       <Stack.Screen name="CustomerTransactionDetail" component={CustomerTransactionDetailScreen} />
       <Stack.Screen name="CustomerRepay" component={CustomerRepayScreen} />
+      <Stack.Screen name="CustomerProfile" component={CustomerProfileScreen} />
     </Stack.Navigator>
   );
 }
@@ -30,6 +33,14 @@ function CustomerScanStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CustomerScan" component={CustomerScanScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function CustomerProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="CustomerProfile" component={CustomerProfileScreen} />
     </Stack.Navigator>
   );
 }
@@ -60,7 +71,7 @@ export default function CustomerNavigator() {
         component={CustomerHomeStack}
         options={{
           tabBarLabel: 'Tahanan',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>H</Text>,
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
         }}
       />
       <Tab.Screen
@@ -69,6 +80,14 @@ export default function CustomerNavigator() {
         options={{
           tabBarLabel: 'I-scan',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>⎕</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={CustomerProfileStack}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text>,
         }}
       />
     </Tab.Navigator>

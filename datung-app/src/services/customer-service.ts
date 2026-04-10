@@ -128,15 +128,21 @@ export const customerService = {
     return data;
   },
 
-  /** Upload selfie photo (for Level 3+ verification) */
+  /** Convert a local image URI (blob URL or data URL) to an ArrayBuffer for upload.
+   *  Works on both React Native (file:// URIs) and web (blob://, data:// URIs). */
+  async _uriToArrayBuffer(uri: string): Promise<ArrayBuffer> {
+    const response = await fetch(uri);
+    return response.arrayBuffer();
+  },
+
+  /** Upload selfie photo (for Level 1+ verification) */
   async uploadSelfie(customerId: string, uri: string): Promise<string> {
     const fileName = `selfies/${customerId}_${Date.now()}.jpg`;
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const buffer = await this._uriToArrayBuffer(uri);
 
     const { error: uploadErr } = await supabase.storage
       .from('customer-docs')
-      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true });
 
     if (uploadErr) throw uploadErr;
 
@@ -144,7 +150,6 @@ export const customerService = {
       .from('customer-docs')
       .getPublicUrl(fileName);
 
-    // Update customer record with selfie URL
     const { error: updateErr } = await supabase
       .from('customers')
       .update({ selfie_url: urlData.publicUrl })
@@ -157,12 +162,11 @@ export const customerService = {
   /** Upload ID photo (for Level 3+ verification) */
   async uploadIdPhoto(customerId: string, uri: string): Promise<string> {
     const fileName = `ids/${customerId}_${Date.now()}.jpg`;
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const buffer = await this._uriToArrayBuffer(uri);
 
     const { error: uploadErr } = await supabase.storage
       .from('customer-docs')
-      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true });
 
     if (uploadErr) throw uploadErr;
 
@@ -170,7 +174,6 @@ export const customerService = {
       .from('customer-docs')
       .getPublicUrl(fileName);
 
-    // Update customer record with ID photo URL
     const { error: updateErr } = await supabase
       .from('customers')
       .update({ id_photo_url: urlData.publicUrl })

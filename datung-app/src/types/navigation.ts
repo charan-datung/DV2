@@ -29,6 +29,7 @@ export type CustomerStackParamList = {
   CustomerScan: undefined;
   CustomerTransactionDetail: { transactionId: string };
   CustomerRepay: { transactionId: string };
+  CustomerProfile: undefined;
 };
 
 // ----------------------------------------------------------------

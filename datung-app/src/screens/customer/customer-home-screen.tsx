@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -116,22 +117,32 @@ export default function CustomerHomeScreen() {
 
             {/* ID upload prompt for Level 2+ customers without ID */}
             {level >= 2 && !customer?.id_photo_url && (
-              <View style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}>
+              <Pressable
+                style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}
+                onPress={() => navigation.navigate('CustomerProfile')}
+              >
                 <Text style={[styles.pendingText, { color: '#1565C0' }]}>
-                  Para maging eligible sa Level 3 (hanggang ₱5,000), kailangan ng valid ID.
-                  Makipag-ugnayan sa aming support para sa verification.
+                  📎 Mag-upload ng valid ID para maging eligible sa Level 3 (hanggang ₱5,000).{' '}
+                  <Text style={{ fontWeight: '700', textDecorationLine: 'underline' }}>
+                    I-tap para mag-upload →
+                  </Text>
                 </Text>
-              </View>
+              </Pressable>
             )}
 
             {/* Selfie upload prompt */}
             {level >= 1 && !customer?.selfie_url && (
-              <View style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}>
+              <Pressable
+                style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}
+                onPress={() => navigation.navigate('CustomerProfile')}
+              >
                 <Text style={[styles.pendingText, { color: '#1565C0' }]}>
-                  Kailangan ng selfie para ma-verify ang iyong account.
-                  Makipag-ugnayan sa aming support para maisumite.
+                  🤳 Mag-upload ng selfie para ma-verify ang iyong account.{' '}
+                  <Text style={{ fontWeight: '700', textDecorationLine: 'underline' }}>
+                    I-tap para mag-upload →
+                  </Text>
                 </Text>
-              </View>
+              </Pressable>
             )}
 
             {/* Pending transactions banner */}
