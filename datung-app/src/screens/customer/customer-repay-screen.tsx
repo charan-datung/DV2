@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -33,8 +32,6 @@ const DATUNG_BANK = {
   branch: 'Pasong Tamo Ponte Branch',
   instapayEnabled: true,
 };
-
-const AUB_QR = require('../../../assets/aub-qr.png');
 
 const C = {
   primary: '#0D5C37',
@@ -253,14 +250,14 @@ export default function CustomerRepayScreen() {
             {/* Bank QR details panel */}
             {method === 'bank_qr' && (
               <View style={styles.bankPanel}>
-                {/* QR code */}
-                <View style={styles.qrContainer}>
-                  <Image
-                    source={AUB_QR}
-                    style={styles.qrImage}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.qrHint}>I-screenshot ang QR na ito para sa pagbabayad</Text>
+                {/* InstaPay instructions */}
+                <View style={styles.instapayBox}>
+                  <Text style={styles.instapayIcon}>🏦</Text>
+                  <Text style={styles.instapayTitle}>InstaPay / PESONet</Text>
+                  <Text style={styles.instapayDesc}>
+                    Buksan ang iyong banking app at i-transfer ang tamang halaga sa account sa ibaba.
+                    I-type ang account number nang maingat — walang QR scanner ang kailangan.
+                  </Text>
                 </View>
 
                 {/* Bank details */}
@@ -448,24 +445,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
-  qrContainer: {
+  instapayBox: {
     alignItems: 'center',
-    backgroundColor: C.white,
+    backgroundColor: C.primaryLight,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: C.border,
     padding: 20,
     marginBottom: 12,
   },
-  qrImage: {
-    width: 200,
-    height: 200,
+  instapayIcon: { fontSize: 32, marginBottom: 8 },
+  instapayTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.primary,
+    marginBottom: 8,
   },
-  qrHint: {
-    fontSize: 11,
-    color: C.textSub,
-    marginTop: 10,
+  instapayDesc: {
+    fontSize: 12,
+    color: C.text,
     textAlign: 'center',
+    lineHeight: 18,
   },
   bankDetails: {
     backgroundColor: C.bg,
