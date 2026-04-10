@@ -4,6 +4,7 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // ---------------------------------------------------------------------------
 // Read credentials injected by app.config.js extra → accessible via
@@ -42,8 +43,13 @@ export const supabase = createClient(
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      // On web (Vercel) we MUST detect the session from the URL hash so that
+      // email confirmation links work: Supabase redirects back with
+      // #access_token=...&type=signup in the fragment.
+      // On native there is no URL to parse, so this must be false.
+      detectSessionInUrl: Platform.OS === 'web',
     },
   },
 );
+
 

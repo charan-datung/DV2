@@ -170,7 +170,16 @@ type EmailStep = 'login' | 'signup' | 'confirm';
 
 export default function LoginScreen() {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { sendOtp, verifyOtp, signInWithEmail, signUpWithEmail } = useAuthStore();
+  const { sendOtp, verifyOtp, signInWithEmail, signUpWithEmail, isAuthenticated, role } = useAuthStore();
+
+  // When a user confirms their email (clicks the link in the confirmation email),
+  // Supabase fires SIGNED_IN and the auth store sets isAuthenticated=true, role=null.
+  // We detect that here and push them straight to RoleSelect so they can register.
+  useEffect(() => {
+    if (isAuthenticated && !role) {
+      navigation.navigate('RoleSelect');
+    }
+  }, [isAuthenticated, role, navigation]);
 
   // Auth mode: phone OTP or email/password
   const [authMode, setAuthMode] = useState<'phone' | 'email'>('email');

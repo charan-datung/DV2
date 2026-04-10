@@ -118,8 +118,8 @@ export default function CustomerHomeScreen() {
             {level >= 2 && !customer?.id_photo_url && (
               <View style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}>
                 <Text style={[styles.pendingText, { color: '#1565C0' }]}>
-                  Mag-upload ng valid ID para maging eligible sa Level 3 (hanggang ₱5,000).
-                  Pumunta sa Settings para mag-upload.
+                  Para maging eligible sa Level 3 (hanggang ₱5,000), kailangan ng valid ID.
+                  Makipag-ugnayan sa aming support para sa verification.
                 </Text>
               </View>
             )}
@@ -128,7 +128,8 @@ export default function CustomerHomeScreen() {
             {level >= 1 && !customer?.selfie_url && (
               <View style={[styles.pendingBanner, { backgroundColor: '#E3F2FD' }]}>
                 <Text style={[styles.pendingText, { color: '#1565C0' }]}>
-                  Mag-upload ng selfie para ma-verify ang iyong account.
+                  Kailangan ng selfie para ma-verify ang iyong account.
+                  Makipag-ugnayan sa aming support para maisumite.
                 </Text>
               </View>
             )}

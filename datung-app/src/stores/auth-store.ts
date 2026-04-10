@@ -86,6 +86,12 @@ async function detectRole(userId: string): Promise<UserRole | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level subscription reference — prevents duplicate listeners when
+// initialize() is called more than once (e.g. on error retry).
+// ---------------------------------------------------------------------------
+let _authSub: { unsubscribe: () => void } | null = null;
+
+// ---------------------------------------------------------------------------
 // Zustand store
 // ---------------------------------------------------------------------------
 export const useAuthStore = create<AuthState>((set) => ({
@@ -143,6 +149,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: async () => {
     set({ isLoading: true });
 
+    // Clean up any previous subscription before creating a new one.
+    // This prevents duplicate listeners when initialize() is retried
+    // after a network error.
+    if (_authSub) {
+      _authSub.unsubscribe();
+      _authSub = null;
+    }
+
     try {
       const user = await authService.getCurrentUser();
       if (user) {
@@ -156,18 +170,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Subscribe to auth events for the lifetime of the app.
-    // Token refresh, sign-in from another tab (web), or server-side sign-out
-    // are all handled here automatically.
-    authService.onAuthStateChange(async (event, session) => {
+    // Handles: token refresh, sign-in from another tab (web),
+    // email confirmation redirects, and server-side sign-out.
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session?.user) {
         set({ user: null, role: null, isAuthenticated: false });
         return;
       }
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         const role = await detectRole(session.user.id);
+        // role === null means newly confirmed user with no profile yet —
+        // RootNavigator will show Auth stack, and LoginScreen will push to RoleSelect.
         set({ user: session.user, role, isAuthenticated: true });
       }
     });
+    _authSub = subscription;
   },
 }));
