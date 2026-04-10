@@ -17,6 +17,7 @@ import TransactionCard from '../../components/transaction-card';
 import LoadingSpinner from '../../components/loading-spinner';
 import ErrorBanner from '../../components/error-banner';
 import EmptyState from '../../components/empty-state';
+import StoreQRModal from '../../components/store-qr-modal';
 
 const C = {
   primary: '#0D5C37',
@@ -44,6 +45,7 @@ export default function StoreHomeScreen() {
   } = useStoreTransactions(store?.id);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -83,12 +85,24 @@ export default function StoreHomeScreen() {
           <>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.storeName}>{store?.name ?? 'Tindahan'}</Text>
-              <View style={[styles.statusBadge, store?.status === 'frozen' && styles.frozenBadge]}>
-                <Text style={[styles.statusText, store?.status === 'frozen' && styles.frozenText]}>
-                  {store?.status === 'active' ? 'Active' : store?.status ?? ''}
-                </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.storeName}>{store?.name ?? 'Tindahan'}</Text>
+                <View style={[styles.statusBadge, store?.status === 'frozen' && styles.frozenBadge]}>
+                  <Text style={[styles.statusText, store?.status === 'frozen' && styles.frozenText]}>
+                    {store?.status === 'active' ? 'Active' : store?.status ?? ''}
+                  </Text>
+                </View>
               </View>
+              {/* QR button — tap to show QR for customers to scan */}
+              {store && (
+                <Pressable
+                  style={({ pressed }) => [styles.qrBtn, pressed && styles.qrBtnPressed]}
+                  onPress={() => setShowQR(true)}
+                >
+                  <Text style={styles.qrBtnIcon}>⬛</Text>
+                  <Text style={styles.qrBtnText}>QR</Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Balance cards */}
@@ -177,6 +191,16 @@ export default function StoreHomeScreen() {
         }
         contentContainerStyle={styles.list}
       />
+
+      {/* QR modal */}
+      {store && (
+        <StoreQRModal
+          visible={showQR}
+          storeName={store.name}
+          storeId={store.id}
+          onClose={() => setShowQR(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -196,17 +220,31 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: C.text,
-    flex: 1,
+    marginBottom: 4,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 8,
     backgroundColor: C.primaryLight,
   },
   frozenBadge: { backgroundColor: C.errorLight },
-  statusText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  statusText: { fontSize: 11, fontWeight: '700', color: C.primary },
   frozenText: { color: C.error },
+  qrBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginLeft: 12,
+    gap: 2,
+  },
+  qrBtnPressed: { backgroundColor: '#09402A' },
+  qrBtnIcon: { fontSize: 18, color: C.white },
+  qrBtnText: { fontSize: 10, fontWeight: '800', color: C.white, letterSpacing: 0.5 },
 
   balanceRow: {
     flexDirection: 'row',

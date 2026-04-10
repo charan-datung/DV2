@@ -10,12 +10,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
 import { useMyStore } from '../../hooks/use-store';
 import { storeService } from '../../services/store-service';
 import { useAuthStore } from '../../stores/auth-store';
 import { formatCentavos } from '../../utils/currency';
 import { userFriendlyError } from '../../utils/errors';
 import LoadingSpinner from '../../components/loading-spinner';
+import StoreQRModal, { buildStoreQRValue } from '../../components/store-qr-modal';
 
 const C = {
   primary: '#0D5C37',
@@ -40,6 +42,7 @@ export default function StoreSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   // Sync form when store loads
   React.useEffect(() => {
@@ -91,21 +94,53 @@ export default function StoreSettingsScreen() {
         <Text style={styles.title}>Mga Setting</Text>
 
         {/* Store QR Code */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>QR Code ng Tindahan</Text>
-          <Text style={[styles.label, { marginTop: 0 }]}>
-            Ipakita ito sa mga customer para i-scan:
-          </Text>
-          <View style={styles.qrContainer}>
-            <View style={styles.qrBox}>
-              <Text style={styles.qrEmoji}>QR</Text>
-              <Text style={styles.qrStoreId}>{store?.id ?? '-'}</Text>
-            </View>
-            <Text style={styles.qrHint}>
-              Store ID: {store?.id ?? '-'}
+        {store && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>QR Code ng Tindahan</Text>
+            <Text style={[styles.label, { marginTop: 0, marginBottom: 16 }]}>
+              Ipakita ito sa mga customer para i-scan at mag-request ng transaksyon.
             </Text>
+
+            {/* Inline QR preview */}
+            <View style={styles.qrContainer}>
+              <Pressable
+                style={({ pressed }) => [styles.qrTouchable, pressed && { opacity: 0.85 }]}
+                onPress={() => setShowQR(true)}
+              >
+                <QRCode
+                  value={buildStoreQRValue(store.id)}
+                  size={180}
+                  color={C.primary}
+                  backgroundColor={C.white}
+                />
+              </Pressable>
+              <Text style={styles.qrTapHint}>Pindutin para palakihin</Text>
+            </View>
+
+            {/* Store ID for manual entry fallback */}
+            <View style={styles.storeIdBox}>
+              <Text style={styles.storeIdLabel}>Store ID (para sa manual entry):</Text>
+              <Text style={styles.storeIdValue} selectable>{store.id}</Text>
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [styles.showQRBtn, pressed && styles.showQRBtnPressed]}
+              onPress={() => setShowQR(true)}
+            >
+              <Text style={styles.showQRBtnText}>Palakihin ang QR Code</Text>
+            </Pressable>
           </View>
-        </View>
+        )}
+
+        {/* Full-screen QR modal */}
+        {store && (
+          <StoreQRModal
+            visible={showQR}
+            storeName={store.name}
+            storeId={store.id}
+            onClose={() => setShowQR(false)}
+          />
+        )}
 
         {/* Store info card */}
         <View style={styles.card}>
@@ -272,19 +307,36 @@ const styles = StyleSheet.create({
   logoutBtnPressed: { backgroundColor: '#FFCDD2' },
   logoutText: { fontSize: 15, fontWeight: '700', color: C.error },
 
-  qrContainer: { alignItems: 'center', paddingVertical: 16 },
-  qrBox: {
-    width: 160,
-    height: 160,
-    borderWidth: 3,
-    borderColor: C.primary,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  qrContainer: { alignItems: 'center', paddingVertical: 8 },
+  qrTouchable: {
+    padding: 16,
     backgroundColor: C.white,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 8,
+  },
+  qrTapHint: { fontSize: 12, color: C.disabled, marginBottom: 12 },
+  storeIdBox: {
+    backgroundColor: '#F5F7FA',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
     marginBottom: 12,
   },
-  qrEmoji: { fontSize: 48, color: C.primary, fontWeight: '800', marginBottom: 4 },
-  qrStoreId: { fontSize: 9, color: C.textSub, textAlign: 'center', paddingHorizontal: 8 },
-  qrHint: { fontSize: 12, color: C.textSub, textAlign: 'center' },
+  storeIdLabel: { fontSize: 11, color: C.textSub, marginBottom: 4 },
+  storeIdValue: { fontSize: 12, color: C.text, fontFamily: 'monospace' },
+  showQRBtn: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showQRBtnPressed: { backgroundColor: C.primaryLight },
+  showQRBtnText: { fontSize: 14, fontWeight: '700', color: C.primary },
 });
