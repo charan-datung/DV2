@@ -52,30 +52,56 @@ export default function AdminDashboardScreen() {
     setRefreshing(false);
   }, [refetchKPIs, refetchOverdue]);
 
-  const handleRunEscalation = async () => {
-    setRunning('escalation');
-    try {
-      const result = await adminService.runEscalation();
-      Alert.alert('Escalation Complete', `Processed: ${result?.processed ?? 0} transactions`);
-      await onRefresh();
-    } catch (err) {
-      Alert.alert('Error', userFriendlyError(err));
-    } finally {
-      setRunning(null);
-    }
+  const handleRunEscalation = () => {
+    Alert.alert(
+      'Run Escalation?',
+      `This will process all overdue transactions system-wide:\n• Day 3 → notify store\n• Day 5 → freeze store\n• Day 10 → reduce customer level\n• Day 30 → permanent block\n\nThis action affects ALL active stores and customers.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Run Escalation',
+          style: 'destructive',
+          onPress: async () => {
+            setRunning('escalation');
+            try {
+              const result = await adminService.runEscalation();
+              Alert.alert('Escalation Complete', `Processed: ${result?.processed ?? 0} transactions`);
+              await onRefresh();
+            } catch (err) {
+              Alert.alert('Error', userFriendlyError(err));
+            } finally {
+              setRunning(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
-  const handleRunSettlement = async () => {
-    setRunning('settlement');
-    try {
-      const result = await adminService.runSettlementProcessing();
-      Alert.alert('Settlement Processing', `Settled: ${result?.settled ?? 0} transactions`);
-      await onRefresh();
-    } catch (err) {
-      Alert.alert('Error', userFriendlyError(err));
-    } finally {
-      setRunning(null);
-    }
+  const handleRunSettlement = () => {
+    Alert.alert(
+      'Run Settlements?',
+      `This will settle all pending 48hr and same-day transactions and transfer funds to store available balances.\n\nThis action affects ALL stores with pending settlements.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Run Settlements',
+          style: 'default',
+          onPress: async () => {
+            setRunning('settlement');
+            try {
+              const result = await adminService.runSettlementProcessing();
+              Alert.alert('Settlement Processing', `Settled: ${result?.settled ?? 0} transactions`);
+              await onRefresh();
+            } catch (err) {
+              Alert.alert('Error', userFriendlyError(err));
+            } finally {
+              setRunning(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   if (isLoading && !kpis) {

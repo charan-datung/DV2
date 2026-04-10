@@ -81,11 +81,20 @@ export default function CustomerRepayScreen() {
   const alreadyPaid = repayments.reduce((sum, r) => sum + r.amount_centavos, 0);
   const remainingDue = totalDue - alreadyPaid;
 
+  const MIN_PAYMENT_CENTAVOS = 1000; // ₱10 minimum partial payment
+
   const parsedCustom = parseFloat(customAmount);
   const paymentAmount = isPartial
     ? (isNaN(parsedCustom) ? 0 : pesosToCentavos(parsedCustom))
     : remainingDue;
-  const isValidPayment = paymentAmount > 0 && paymentAmount <= remainingDue;
+
+  const referenceRequired = method === 'bank_qr';
+  const referenceProvided = referenceNo.trim().length > 0;
+  const isValidPayment =
+    paymentAmount > 0 &&
+    paymentAmount <= remainingDue &&
+    (!isPartial || paymentAmount >= MIN_PAYMENT_CENTAVOS) &&
+    (!referenceRequired || referenceProvided);
 
   const amountPesos = (paymentAmount / 100).toFixed(2);
 
@@ -115,6 +124,11 @@ export default function CustomerRepayScreen() {
     setIsSubmitting(true);
 
     try {
+      if (referenceRequired && !referenceProvided) {
+        setError('Kailangan ang reference number para sa bank transfer.');
+        setIsSubmitting(false);
+        return;
+      }
       await transactionService.submitRepayment({
         transaction_id: transactionId,
         amount_centavos: paymentAmount,
@@ -185,7 +199,7 @@ export default function CustomerRepayScreen() {
                   style={styles.input}
                   value={customAmount}
                   onChangeText={(t) => setCustomAmount(t.replace(/[^0-9.]/g, ''))}
-                  placeholder={`Max: ${formatCentavos(remainingDue)}`}
+                  placeholder={`Min: ₱10 · Max: ${formatCentavos(remainingDue)}`}
                   placeholderTextColor={C.disabled}
                   keyboardType="decimal-pad"
                   editable={!isSubmitting}
@@ -193,6 +207,11 @@ export default function CustomerRepayScreen() {
                 {paymentAmount > remainingDue && (
                   <Text style={styles.errorText}>
                     Lumagpas sa natitirang {formatCentavos(remainingDue)}.
+                  </Text>
+                )}
+                {paymentAmount > 0 && paymentAmount < MIN_PAYMENT_CENTAVOS && (
+                  <Text style={styles.errorText}>
+                    Minimum na bayad ay ₱10.00.
                   </Text>
                 )}
               </>
@@ -290,10 +309,19 @@ export default function CustomerRepayScreen() {
 
             {/* Reference number */}
             <Text style={styles.label}>
-              {method === 'bank_qr' ? 'Reference Number ng Transfer' : 'Resibo # (opsyonal)'}
+              {method === 'bank_qr'
+                ? 'Reference Number ng Transfer (kinakailangan)'
+                : 'Resibo # (opsyonal)'}
             </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                referenceRequired && !referenceProvided && referenceNo.length === 0
+                  ? null
+                  : referenceRequired && !referenceProvided
+                    ? styles.inputError
+                    : null,
+              ]}
               value={referenceNo}
               onChangeText={setReferenceNo}
               placeholder={method === 'bank_qr' ? 'InstaPay / PESONet ref #' : 'Resibo #'}
@@ -301,6 +329,11 @@ export default function CustomerRepayScreen() {
               editable={!isSubmitting}
               autoCapitalize="characters"
             />
+            {referenceRequired && !referenceProvided && referenceNo.length > 0 && (
+              <Text style={styles.errorText}>
+                Ilagay ang reference number bago mag-submit.
+              </Text>
+            )}
 
             {!!error && (
               <View style={styles.errorBox}>
@@ -493,6 +526,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 15,
     color: C.text,
+  },
+  inputError: {
+    borderColor: C.error,
   },
 
   errorBox: {

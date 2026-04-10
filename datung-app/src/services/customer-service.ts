@@ -180,7 +180,8 @@ export const customerService = {
     return urlData.publicUrl;
   },
 
-  /** Request a new transaction at a store */
+  /** Request a new transaction at a store.
+   *  Prevents duplicate pending requests at the same store. */
   async requestTransaction(data: {
     store_id: string;
     customer_id: string;
@@ -188,6 +189,21 @@ export const customerService = {
     interest_centavos: number;
     due_date: string;
   }) {
+    // Duplicate check: reject if customer already has a pending transaction at this store
+    const { data: existing, error: checkErr } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('store_id', data.store_id)
+      .eq('customer_id', data.customer_id)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle();
+
+    if (checkErr) throw checkErr;
+    if (existing) {
+      throw new Error('Mayroon ka nang nakabinbing (pending) request sa tindahang ito. Hintayin ang approval o kanselahin muna.');
+    }
+
     const { data: txn, error } = await supabase
       .from('transactions')
       .insert({

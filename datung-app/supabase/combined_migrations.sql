@@ -971,3 +971,102 @@ SELECT
 -- ON CONFLICT (user_id) DO NOTHING;
 -- Add bank_qr as a repayment method (replaces GCash API requirement)
 ALTER TYPE repayment_method ADD VALUE IF NOT EXISTS 'bank_qr';
+
+
+-- ============================================================
+-- Migration 005: Atomic repayment processing RPCs
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION process_on_time_repayment(p_customer_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_count  integer;
+  v_level  integer;
+  v_threshold integer;
+BEGIN
+  SELECT on_time_repayment_count, level
+    INTO v_count, v_level
+    FROM customers
+   WHERE id = p_customer_id
+     FOR UPDATE;
+
+  v_count := v_count + 1;
+
+  v_threshold := CASE v_level
+    WHEN 0 THEN 2
+    WHEN 1 THEN 5
+    WHEN 2 THEN 10
+    WHEN 3 THEN 20
+    ELSE NULL
+  END;
+
+  IF v_threshold IS NOT NULL AND v_count >= v_threshold AND v_level < 4 THEN
+    UPDATE customers
+       SET on_time_repayment_count = v_count,
+           level = v_level + 1
+     WHERE id = p_customer_id;
+  ELSE
+    UPDATE customers
+       SET on_time_repayment_count = v_count
+     WHERE id = p_customer_id;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION process_late_repayment(p_customer_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_level integer;
+BEGIN
+  SELECT level INTO v_level
+    FROM customers
+   WHERE id = p_customer_id
+     FOR UPDATE;
+
+  IF v_level > 0 THEN
+    UPDATE customers
+       SET level = v_level - 1
+     WHERE id = p_customer_id;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION trg_update_store_balance()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    IF OLD.status = 'pending' AND NEW.status = 'approved' THEN
+      UPDATE stores
+         SET available_balance = available_balance - NEW.amount_centavos
+       WHERE id = NEW.store_id;
+      IF (SELECT available_balance FROM stores WHERE id = NEW.store_id) < 0 THEN
+        RAISE EXCEPTION 'Insufficient store available_balance for store %', NEW.store_id;
+      END IF;
+    ELSIF NEW.status = 'repaid' AND OLD.status IN ('approved', 'settled') THEN
+      UPDATE stores
+         SET available_balance = available_balance + NEW.amount_centavos
+       WHERE id = NEW.store_id;
+    ELSIF NEW.status = 'defaulted' AND OLD.status IN ('pending', 'approved', 'settled') THEN
+      IF OLD.status IN ('approved', 'settled') THEN
+        UPDATE stores
+           SET available_balance = available_balance + NEW.amount_centavos
+         WHERE id = NEW.store_id;
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;

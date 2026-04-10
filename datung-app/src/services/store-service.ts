@@ -223,6 +223,16 @@ export const storeService = {
     return { valid: true };
   },
 
+  /** Valid trust_reason enum values — must match the DB ENUM in migration 001 */
+  TRUST_REASONS: [
+    'neighbor_5yr',
+    'regular_suki',
+    'known_family',
+    'referred_by_customer',
+    'work_colleague',
+    'other',
+  ] as const,
+
   /** Approve a pending transaction — validates rules, creates store interview, updates status.
    *  Balance deduction is handled atomically by the trg_update_store_balance DB trigger. */
   async approveTransaction(
@@ -231,6 +241,11 @@ export const storeService = {
     customerId: string,
     trustReason: string,
   ) {
+    // Validate trust_reason against DB enum before sending to Supabase
+    if (!this.TRUST_REASONS.includes(trustReason as typeof this.TRUST_REASONS[number])) {
+      throw new Error(`Invalid trust reason: "${trustReason}". Must be one of: ${this.TRUST_REASONS.join(', ')}`);
+    }
+
     // Validate business rules first
     const validation = await this.validateApproval(transactionId, storeId, customerId);
     if (!validation.valid) {

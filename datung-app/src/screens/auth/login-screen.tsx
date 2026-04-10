@@ -188,6 +188,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  // T&C consent — must be accepted before signup (required by PH Data Privacy Act)
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   // Shared state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -361,7 +364,7 @@ export default function LoginScreen() {
     : '';
 
   const emailLoginReady = isValidEmail(email) && password.length >= 6;
-  const emailSignupReady = emailLoginReady && confirmPassword.length >= 6;
+  const emailSignupReady = emailLoginReady && confirmPassword.length >= 6 && termsAccepted;
 
   // ------------------------------------------------------------------
   return (
@@ -632,6 +635,23 @@ export default function LoginScreen() {
                     <Text style={styles.errorText}>{error}</Text>
                   </View>
                 )}
+
+                {/* T&C consent — required by PH Data Privacy Act (RA 10173) */}
+                <Pressable
+                  style={styles.termsRow}
+                  onPress={() => setTermsAccepted((v) => !v)}
+                >
+                  <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                    {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.termsText}>
+                    Sumasang-ayon ako sa{' '}
+                    <Text style={styles.termsLink}>Mga Tuntunin ng Serbisyo</Text>
+                    {' '}at{' '}
+                    <Text style={styles.termsLink}>Patakaran sa Privacy</Text>
+                    {' '}ng Datung, at pinahihintulutan ang pagkolekta ng aking personal na impormasyon alinsunod sa RA 10173 (Data Privacy Act).
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   style={({ pressed }) => [
@@ -996,5 +1016,45 @@ const styles = StyleSheet.create({
     fontSize: 48,
     color: C.primary,
     marginBottom: 12,
+  },
+
+  // T&C consent checkbox
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 20,
+    gap: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  checkmark: {
+    fontSize: 13,
+    color: C.white,
+    fontWeight: '800',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 12,
+    color: C.textSub,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: C.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

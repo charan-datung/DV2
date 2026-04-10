@@ -70,6 +70,8 @@ export default function StoreSettingsScreen() {
       });
       await refetch();
       setSaved(true);
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setError(userFriendlyError(err));
     } finally {
