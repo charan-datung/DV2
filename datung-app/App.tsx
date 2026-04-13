@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -109,12 +109,10 @@ function AppInner() {
       setInitError('__misconfigured__');
       return;
     }
-    try {
-      await initialize();
-    } catch (err) {
-      console.error('[Datung] Auth init failed:', err);
-      setInitError('network');
-    }
+    // initialize() now handles all errors internally and never throws.
+    // Any Supabase/network failure during init is treated as "no session"
+    // so the user lands on the login screen instead of a dead-end error wall.
+    await initialize();
   }, [initialize]);
 
   useEffect(() => {
@@ -137,23 +135,8 @@ function AppInner() {
     );
   }
 
-  if (initError) {
-    return (
-      <SafeAreaView style={crashStyles.safe}>
-        <Text style={crashStyles.icon}>📶</Text>
-        <Text style={crashStyles.heading}>Walang koneksyon</Text>
-        <Text style={crashStyles.body}>
-          Hindi ma-connect sa server. Suriin ang internet at subukan muli.
-        </Text>
-        <Pressable
-          style={({ pressed }) => [crashStyles.btn, pressed && crashStyles.btnPressed]}
-          onPress={runInit}
-        >
-          <Text style={crashStyles.btnText}>Subukan Muli</Text>
-        </Pressable>
-      </SafeAreaView>
-    );
-  }
+  // initError is only non-null when isMisconfigured — all other init failures
+  // are handled inside initialize() itself (fallback: show login screen).
 
   if (isLoading) {
     return <LoadingSpinner message="Nilo-load ang Datung..." />;

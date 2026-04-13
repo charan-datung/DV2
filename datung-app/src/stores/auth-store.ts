@@ -150,41 +150,51 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
 
     // Clean up any previous subscription before creating a new one.
-    // This prevents duplicate listeners when initialize() is retried
-    // after a network error.
+    // This prevents duplicate listeners when initialize() is retried.
     if (_authSub) {
       _authSub.unsubscribe();
       _authSub = null;
     }
 
     try {
-      const user = await authService.getCurrentUser();
-      if (user) {
-        const role = await detectRole(user.id);
-        set({ user, role, isAuthenticated: true });
+      // Session restore — non-fatal if it fails (network error, paused project, etc.)
+      try {
+        const user = await authService.getCurrentUser();
+        if (user) {
+          const role = await detectRole(user.id);
+          set({ user, role, isAuthenticated: true });
+        }
+      } catch (sessionErr) {
+        // Treat as "no existing session" — user will see login screen
+        console.warn('[Datung] Session restore failed (non-fatal):', sessionErr);
       }
-    } catch {
-      // Session restore failure is non-fatal — treat as logged out
+
+      // Subscribe to auth events for the lifetime of the app.
+      // onAuthStateChange() must also be inside the outer try — in some
+      // environments (paused Supabase project, AsyncStorage errors on web)
+      // the Supabase client's internal initialization can throw here.
+      const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          set({ user: null, role: null, isAuthenticated: false });
+          return;
+        }
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          const role = await detectRole(session.user.id);
+          // role === null means newly confirmed user with no profile yet —
+          // RootNavigator will show Auth stack, LoginScreen will push to RoleSelect.
+          set({ user: session.user, role, isAuthenticated: true });
+        }
+      });
+      _authSub = subscription;
+    } catch (err) {
+      // Auth listener setup failed — treat as "no session", let user log in.
+      // We deliberately do NOT re-throw: propagating this error causes App.tsx
+      // to show the "Walang koneksyon" dead-end screen even when the device
+      // has internet (e.g. project paused, wrong key, storage error on web).
+      console.error('[Datung] Auth init failed, proceeding as logged out:', err);
     } finally {
       set({ isLoading: false });
     }
-
-    // Subscribe to auth events for the lifetime of the app.
-    // Handles: token refresh, sign-in from another tab (web),
-    // email confirmation redirects, and server-side sign-out.
-    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session?.user) {
-        set({ user: null, role: null, isAuthenticated: false });
-        return;
-      }
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        const role = await detectRole(session.user.id);
-        // role === null means newly confirmed user with no profile yet —
-        // RootNavigator will show Auth stack, and LoginScreen will push to RoleSelect.
-        set({ user: session.user, role, isAuthenticated: true });
-      }
-    });
-    _authSub = subscription;
   },
 }));
